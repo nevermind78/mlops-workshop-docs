@@ -1086,7 +1086,7 @@ Copiez tout le JSON retourné.
 4.  Ajoutez les secrets suivants :
 
 | **Nom** | **Valeur** |
-|------------------------------------|------------------------------------|
+|----|----|
 | AZURE_CREDENTIALS | Le JSON du Service Principal |
 | ACR_USERNAME | Résultat de : `az acr credential show --name $ACR_NAME --query username -o tsv` |
 | ACR_PASSWORD | Résultat de : `az acr credential show --name $ACR_NAME --query passwords[0].value -o tsv` |
@@ -1632,5 +1632,4 @@ Continuez à explorer, à apprendre et à innover.*
 ------------------------------------------------------------------------
 
 *Version 1.0 - Novembre 2025*\
-*Workshop MLOps avec Azure*
-\n## Test de déploiement - jeu. 20 nov. 2025 03:26:42
+*Workshop MLOps avec Azure* \n\## Test de déploiement - jeu. 20 nov. 2025 03:26:42
