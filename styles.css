@@ -1,37 +1,39 @@
-/* ===== STYLES PERSONNALISÉS POUR WORKSHOP MLOPS ===== */
+/* ===== STYLES PROFESSIONNELS POUR WORKSHOP MLOPS ===== */
 
-/* Variables de couleurs Azure */
+/* Variables de couleurs Azure professionnelles */
 :root {
   --azure-blue: #0078d4;
   --azure-dark-blue: #005a9e;
-  --azure-light-blue: #e6f2ff;
+  --azure-light-blue: #f3f9ff;
+  --azure-border: #c7e0f4;
   --success-green: #107c10;
-  --warning-orange: #ff8c00;
-  --error-red: #d13438;
+  --warning-orange: #d83b01;
   --gray-light: #f8f9fa;
   --gray-medium: #6c757d;
-  --gray-dark: #343a40;
+  --gray-dark: #323130;
+  --gray-border: #e1e5e9;
 }
 
 /* ===== OVERALL STYLES ===== */
 body {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
   line-height: 1.6;
   color: var(--gray-dark);
   background-color: #ffffff;
+  font-size: 16px;
 }
 
 /* ===== HEADER STYLES ===== */
 .quarto-title-block .quarto-title {
-  border-bottom: 3px solid var(--azure-blue);
-  padding-bottom: 1rem;
+  border-bottom: 2px solid var(--azure-border);
+  padding-bottom: 1.5rem;
   margin-bottom: 2rem;
 }
 
 .quarto-title h1.title {
-  color: var(--azure-blue);
+  color: var(--azure-dark-blue);
   font-weight: 600;
-  font-size: 2.5rem;
+  font-size: 2.25rem;
   margin-bottom: 0.5rem;
 }
 
@@ -40,26 +42,29 @@ body {
   background: var(--azure-light-blue);
   border-radius: 8px;
   padding: 1.5rem;
-  border-left: 4px solid var(--azure-blue);
+  border: 1px solid var(--azure-border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 #TOC .nav-link {
   color: var(--azure-dark-blue);
-  padding: 0.5rem 0;
-  border-bottom: 1px solid #e1e5e9;
-  transition: all 0.3s ease;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--azure-border);
+  transition: all 0.2s ease;
+  font-weight: 500;
 }
 
 #TOC .nav-link:hover {
   color: var(--azure-blue);
-  background-color: transparent;
-  padding-left: 10px;
+  background-color: rgba(0, 120, 212, 0.05);
+  border-radius: 4px;
 }
 
 #TOC .nav-link.active {
   color: var(--azure-blue);
   font-weight: 600;
-  background-color: transparent;
+  background-color: rgba(0, 120, 212, 0.1);
+  border-radius: 4px;
 }
 
 /* ===== HEADINGS ===== */
@@ -72,49 +77,58 @@ h1, h2, h3, h4, h5, h6 {
 
 h1 {
   border-bottom: 2px solid var(--azure-blue);
-  padding-bottom: 0.5rem;
+  padding-bottom: 0.75rem;
 }
 
 h2 {
+  background: var(--azure-light-blue);
+  padding: 1rem 1.5rem;
+  border-radius: 8px;
   border-left: 4px solid var(--azure-blue);
-  padding-left: 1rem;
-  background: linear-gradient(90deg, var(--azure-light-blue) 0%, transparent 100%);
+  margin: 2rem 0 1.5rem 0;
 }
 
 h3 {
   color: var(--azure-blue);
-  border-bottom: 1px solid #e1e5e9;
-  padding-bottom: 0.25rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--azure-border);
 }
 
-/* ===== CODE BLOCKS ===== */
+/* ===== CODE BLOCKS - FOND CLAIR ===== */
 pre, code {
-  font-family: 'Cascadia Code', 'Consolas', 'Monaco', monospace;
+  font-family: 'Cascadia Code', 'Consolas', 'Monaco', 'Menlo', monospace;
 }
 
 pre {
-  background: #1e1e1e;
-  border: 1px solid #333;
-  border-radius: 6px;
+  background: var(--azure-light-blue) !important;
+  border: 1px solid var(--azure-border) !important;
+  border-radius: 8px;
   padding: 1.5rem;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  margin: 1.5rem 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+  color: var(--gray-dark) !important;
+  font-size: 0.9em;
+  line-height: 1.5;
 }
 
 code:not(pre code) {
   background: var(--azure-light-blue);
   color: var(--azure-dark-blue);
   padding: 0.2em 0.4em;
-  border-radius: 3px;
-  font-size: 0.9em;
-  border: 1px solid #b8d4f0;
+  border-radius: 4px;
+  font-size: 0.88em;
+  border: 1px solid var(--azure-border);
+  font-weight: 500;
 }
 
-/* Syntax highlighting pour code blocks */
-pre .kw { color: #569cd6; } /* keywords */
-pre .dt { color: #4ec9b0; } /* data types */
-pre .dv { color: #b5cea8; } /* values */
-pre .st { color: #ce9178; } /* strings */
-pre .co { color: #6a9955; } /* comments */
+/* Syntax highlighting pour fond clair */
+pre .kw { color: #0000ff; font-weight: 600; } /* keywords */
+pre .dt { color: #267f99; } /* data types */
+pre .dv { color: #098658; } /* values */
+pre .st { color: #a31515; } /* strings */
+pre .co { color: #008000; font-style: italic; } /* comments */
+pre .fu { color: #795e26; } /* functions */
+pre .ot { color: #af00db; } /* other */
 
 /* ===== BLOCKS AND CALL-OUTS ===== */
 blockquote {
@@ -123,17 +137,18 @@ blockquote {
   padding: 1.5rem;
   margin: 1.5rem 0;
   border-radius: 0 8px 8px 0;
-  font-style: italic;
+  font-style: normal;
+  color: var(--gray-dark);
 }
 
 /* Styles pour les checkpoints */
 .checkpoint {
-  background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
-  border: 1px solid var(--azure-blue);
-  border-radius: 8px;
-  padding: 1.5rem;
+  background: linear-gradient(135deg, #f8fbff 0%, #f0f7ff 100%);
+  border: 2px solid var(--azure-border);
+  border-radius: 12px;
+  padding: 2rem;
   margin: 2rem 0;
-  box-shadow: 0 2px 4px rgba(0, 120, 212, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 120, 212, 0.08);
 }
 
 .checkpoint h4 {
@@ -141,12 +156,14 @@ blockquote {
   margin-top: 0;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
+  font-size: 1.2em;
+  margin-bottom: 1.5rem;
 }
 
 .checkpoint h4::before {
-  content: "✅";
-  font-size: 1.2em;
+  content: "📋";
+  font-size: 1.3em;
 }
 
 /* ===== LISTS ===== */
@@ -155,58 +172,70 @@ ul, ol {
 }
 
 li {
-  margin-bottom: 0.5rem;
-  line-height: 1.6;
+  margin-bottom: 0.75rem;
+  line-height: 1.7;
 }
 
 /* Style spécial pour les listes de vérification */
 ul.task-list {
   list-style: none;
   padding-left: 0;
+  background: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+  border: 1px solid var(--azure-border);
 }
 
 ul.task-list li {
-  padding: 0.5rem 0;
-  border-bottom: 1px solid #f0f0f0;
+  padding: 1rem 1rem;
+  border-bottom: 1px solid var(--gray-border);
   display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
+  align-items: center;
+  gap: 1rem;
+  transition: background-color 0.2s ease;
 }
 
-ul.task-list li::before {
-  content: "☐";
-  color: var(--azure-blue);
-  font-weight: bold;
-  min-width: 1.5em;
+ul.task-list li:last-child {
+  border-bottom: none;
+}
+
+ul.task-list li:hover {
+  background-color: var(--azure-light-blue);
+  border-radius: 6px;
 }
 
 ul.task-list li input[type="checkbox"] {
-  margin-right: 0.5rem;
-  transform: scale(1.2);
+  margin: 0;
+  transform: scale(1.3);
+  accent-color: var(--azure-blue);
 }
 
 /* ===== TABLES ===== */
 table {
   width: 100%;
   border-collapse: collapse;
-  margin: 1.5rem 0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin: 2rem 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 th {
   background: var(--azure-blue);
   color: white;
   font-weight: 600;
-  padding: 1rem;
+  padding: 1.25rem 1.5rem;
   text-align: left;
+  font-size: 0.95em;
 }
 
 td {
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid #e1e5e9;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--azure-border);
+  background: white;
 }
 
-tr:nth-child(even) {
+tr:nth-child(even) td {
   background-color: var(--azure-light-blue);
 }
 
@@ -214,7 +243,8 @@ tr:nth-child(even) {
 a {
   color: var(--azure-blue);
   text-decoration: none;
-  transition: color 0.3s ease;
+  font-weight: 500;
+  transition: all 0.2s ease;
 }
 
 a:hover {
@@ -222,62 +252,52 @@ a:hover {
   text-decoration: underline;
 }
 
-/* ===== BUTTONS (pour les blocs de code interactifs) ===== */
-.code-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: #2d2d2d;
-  color: white;
-  padding: 0.5rem 1.5rem;
-  border-radius: 6px 6px 0 0;
+/* ===== COMMAND LINE STYLING ===== */
+.command-line {
+  background: var(--azure-light-blue);
+  color: var(--gray-dark);
+  padding: 1.25rem 1.5rem;
+  border-radius: 8px;
+  font-family: 'Cascadia Code', 'Consolas', monospace;
+  margin: 1.5rem 0;
+  border: 1px solid var(--azure-border);
+  border-left: 4px solid var(--azure-blue);
   font-size: 0.9em;
+  position: relative;
 }
 
-.copy-btn {
-  background: var(--azure-blue);
-  color: white;
-  border: none;
-  padding: 0.25rem 0.75rem;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.8em;
-  transition: background 0.3s ease;
-}
-
-.copy-btn:hover {
-  background: var(--azure-dark-blue);
+.command-line::before {
+  content: "$";
+  color: var(--azure-blue);
+  margin-right: 0.75rem;
+  font-weight: bold;
+  font-size: 1.1em;
 }
 
 /* ===== RESPONSIVE DESIGN ===== */
 @media (max-width: 768px) {
   body {
-    font-size: 14px;
+    font-size: 15px;
     padding: 1rem;
   }
   
   .quarto-title h1.title {
-    font-size: 2rem;
+    font-size: 1.75rem;
   }
   
   #TOC {
     margin-bottom: 2rem;
+    padding: 1rem;
   }
   
   pre {
-    padding: 1rem;
-    font-size: 0.9em;
+    padding: 1.25rem;
+    font-size: 0.85em;
   }
-}
-
-/* ===== ANIMATIONS ===== */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.quarto-title-block, section {
-  animation: fadeIn 0.5s ease-out;
+  
+  .checkpoint {
+    padding: 1.5rem;
+  }
 }
 
 /* ===== PRINT STYLES ===== */
@@ -297,50 +317,89 @@ a:hover {
   #TOC {
     display: none;
   }
+  
+  pre {
+    background: #f8f9fa !important;
+    border: 1px solid #dee2e6 !important;
+  }
 }
 
 /* ===== UTILITY CLASSES ===== */
 .azure-badge {
   background: var(--azure-blue);
   color: white;
-  padding: 0.25rem 0.75rem;
+  padding: 0.4rem 1rem;
   border-radius: 20px;
   font-size: 0.8em;
   font-weight: 600;
   display: inline-block;
   margin: 0.25rem;
+  box-shadow: 0 2px 4px rgba(0, 120, 212, 0.2);
 }
 
 .warning-box {
-  background: #fff3cd;
-  border: 1px solid #ffc107;
-  border-radius: 6px;
-  padding: 1rem;
-  margin: 1rem 0;
+  background: #fff8e1;
+  border: 2px solid #ffb300;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin: 1.5rem 0;
+  color: #5d4037;
+}
+
+.warning-box h4 {
+  color: #f57c00;
+  margin-top: 0;
 }
 
 .success-box {
-  background: #d1e7dd;
-  border: 1px solid var(--success-green);
-  border-radius: 6px;
-  padding: 1rem;
-  margin: 1rem 0;
+  background: #e8f5e8;
+  border: 2px solid var(--success-green);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin: 1.5rem 0;
+  color: #1b5e20;
 }
 
-/* ===== COMMAND LINE STYLING ===== */
-.command-line {
-  background: #1e1e1e;
-  color: #ffffff;
-  padding: 1rem;
-  border-radius: 6px;
-  font-family: 'Cascadia Code', 'Consolas', monospace;
-  margin: 1rem 0;
-  position: relative;
+.success-box h4 {
+  color: var(--success-green);
+  margin-top: 0;
 }
 
-.command-line::before {
-  content: "$";
-  color: var(--azure-blue);
-  margin-right: 0.5rem;
-  font-weight: bold;
+/* ===== CODE HEADER STYLING ===== */
+.code-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--azure-blue);
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px 8px 0 0;
+  font-size: 0.85em;
+  font-weight: 500;
+}
+
+.copy-btn {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 0.4rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8em;
+  transition: all 0.2s ease;
+}
+
+.copy-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* ===== SMOOTH SCROLLING ===== */
+html {
+  scroll-behavior: smooth;
+}
+
+/* ===== FOCUS STYLES ===== */
+a:focus, button:focus {
+  outline: 2px solid var(--azure-blue);
+  outline-offset: 2px;
 }
