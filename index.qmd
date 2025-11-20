@@ -1633,3 +1633,4 @@ Continuez à explorer, à apprendre et à innover.*
 
 *Version 1.0 - Novembre 2025*\
 *Workshop MLOps avec Azure*
+\n## Test de déploiement - jeu. 20 nov. 2025 03:26:42
