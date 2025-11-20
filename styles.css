@@ -1,6 +1,7 @@
 /* ===== STYLES PROFESSIONNELS POUR WORKSHOP MLOPS ===== */
 
 /* Variables de couleurs Azure professionnelles */
+/* Variables de couleurs Azure professionnelles */
 :root {
   --azure-blue: #0078d4;
   --azure-dark-blue: #005a9e;
@@ -9,8 +10,8 @@
   --success-green: #107c10;
   --warning-orange: #d83b01;
   --gray-light: #f8f9fa;
-  --gray-medium: #6c757d;
-  --gray-dark: #323130;
+  --gray-medium: #8a8d91;  /* Éclairci de #6c757d */
+  --gray-dark: #5a5a5a;    /* Éclairci de #323130 */
   --gray-border: #e1e5e9;
 }
 
