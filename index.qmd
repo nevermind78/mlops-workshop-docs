@@ -1,5 +1,5 @@
 ---
-title: "Workshop MLOps avec Azure - Guide Pratique student"
+title: "Workshop MLOps avec Azure - Guide Pratique"
 format: 
   html:
     toc: true
