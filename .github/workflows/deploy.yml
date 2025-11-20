@@ -1,25 +1,23 @@
-# Éditez le fichier
-cat > .github/workflows/deploy.yml << 'EOF'
-name: Deploy Quarto Site
+name: "Deploy Quarto Site"
 
 on:
   push:
-    branches: [main]
+    branches: ["main"]
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: "ubuntu-latest"
     steps:
-      - uses: actions/checkout@v4
-      - name: Install Quarto
+      - uses: "actions/checkout@v4"
+      - name: "Install Quarto"
         run: |
           wget -q https://github.com/quarto-dev/quarto-cli/releases/download/v1.4.553/quarto-1.4.553-linux-amd64.deb
           sudo dpkg -i quarto-1.4.553-linux-amd64.deb
-      - name: Build site
-        run: quarto render
-      - name: Deploy
-        uses: peaceiris/actions-gh-pages@v3
+      - name: "Build site"
+        run: "quarto render"
+      - name: "Deploy"
+        uses: "peaceiris/actions-gh-pages@v3"
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./_site
+          github_token: "${{ secrets.GITHUB_TOKEN }}"
+          publish_dir: "./_site"
           force_orphan: true
