@@ -1,5 +1,5 @@
 ---
-title: "Workshop MLOps avec Azure - Guide Pratique"
+title: "Workshop MLOps avec Azure - Guide Pratique student"
 format: 
   html:
     toc: true
@@ -1086,7 +1086,7 @@ Copiez tout le JSON retourné.
 4.  Ajoutez les secrets suivants :
 
 | **Nom** | **Valeur** |
-|----|----|
+|------------------------------------|------------------------------------|
 | AZURE_CREDENTIALS | Le JSON du Service Principal |
 | ACR_USERNAME | Résultat de : `az acr credential show --name $ACR_NAME --query username -o tsv` |
 | ACR_PASSWORD | Résultat de : `az acr credential show --name $ACR_NAME --query passwords[0].value -o tsv` |
