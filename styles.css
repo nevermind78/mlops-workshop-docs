@@ -1,0 +1,346 @@
+/* ===== STYLES PERSONNALISÉS POUR WORKSHOP MLOPS ===== */
+
+/* Variables de couleurs Azure */
+:root {
+  --azure-blue: #0078d4;
+  --azure-dark-blue: #005a9e;
+  --azure-light-blue: #e6f2ff;
+  --success-green: #107c10;
+  --warning-orange: #ff8c00;
+  --error-red: #d13438;
+  --gray-light: #f8f9fa;
+  --gray-medium: #6c757d;
+  --gray-dark: #343a40;
+}
+
+/* ===== OVERALL STYLES ===== */
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  line-height: 1.6;
+  color: var(--gray-dark);
+  background-color: #ffffff;
+}
+
+/* ===== HEADER STYLES ===== */
+.quarto-title-block .quarto-title {
+  border-bottom: 3px solid var(--azure-blue);
+  padding-bottom: 1rem;
+  margin-bottom: 2rem;
+}
+
+.quarto-title h1.title {
+  color: var(--azure-blue);
+  font-weight: 600;
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+}
+
+/* ===== NAVIGATION TOC ===== */
+#TOC {
+  background: var(--azure-light-blue);
+  border-radius: 8px;
+  padding: 1.5rem;
+  border-left: 4px solid var(--azure-blue);
+}
+
+#TOC .nav-link {
+  color: var(--azure-dark-blue);
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #e1e5e9;
+  transition: all 0.3s ease;
+}
+
+#TOC .nav-link:hover {
+  color: var(--azure-blue);
+  background-color: transparent;
+  padding-left: 10px;
+}
+
+#TOC .nav-link.active {
+  color: var(--azure-blue);
+  font-weight: 600;
+  background-color: transparent;
+}
+
+/* ===== HEADINGS ===== */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--azure-dark-blue);
+  font-weight: 600;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+}
+
+h1 {
+  border-bottom: 2px solid var(--azure-blue);
+  padding-bottom: 0.5rem;
+}
+
+h2 {
+  border-left: 4px solid var(--azure-blue);
+  padding-left: 1rem;
+  background: linear-gradient(90deg, var(--azure-light-blue) 0%, transparent 100%);
+}
+
+h3 {
+  color: var(--azure-blue);
+  border-bottom: 1px solid #e1e5e9;
+  padding-bottom: 0.25rem;
+}
+
+/* ===== CODE BLOCKS ===== */
+pre, code {
+  font-family: 'Cascadia Code', 'Consolas', 'Monaco', monospace;
+}
+
+pre {
+  background: #1e1e1e;
+  border: 1px solid #333;
+  border-radius: 6px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+code:not(pre code) {
+  background: var(--azure-light-blue);
+  color: var(--azure-dark-blue);
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+  font-size: 0.9em;
+  border: 1px solid #b8d4f0;
+}
+
+/* Syntax highlighting pour code blocks */
+pre .kw { color: #569cd6; } /* keywords */
+pre .dt { color: #4ec9b0; } /* data types */
+pre .dv { color: #b5cea8; } /* values */
+pre .st { color: #ce9178; } /* strings */
+pre .co { color: #6a9955; } /* comments */
+
+/* ===== BLOCKS AND CALL-OUTS ===== */
+blockquote {
+  background: var(--azure-light-blue);
+  border-left: 4px solid var(--azure-blue);
+  padding: 1.5rem;
+  margin: 1.5rem 0;
+  border-radius: 0 8px 8px 0;
+  font-style: italic;
+}
+
+/* Styles pour les checkpoints */
+.checkpoint {
+  background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+  border: 1px solid var(--azure-blue);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin: 2rem 0;
+  box-shadow: 0 2px 4px rgba(0, 120, 212, 0.1);
+}
+
+.checkpoint h4 {
+  color: var(--azure-blue);
+  margin-top: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.checkpoint h4::before {
+  content: "✅";
+  font-size: 1.2em;
+}
+
+/* ===== LISTS ===== */
+ul, ol {
+  padding-left: 1.5rem;
+}
+
+li {
+  margin-bottom: 0.5rem;
+  line-height: 1.6;
+}
+
+/* Style spécial pour les listes de vérification */
+ul.task-list {
+  list-style: none;
+  padding-left: 0;
+}
+
+ul.task-list li {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+ul.task-list li::before {
+  content: "☐";
+  color: var(--azure-blue);
+  font-weight: bold;
+  min-width: 1.5em;
+}
+
+ul.task-list li input[type="checkbox"] {
+  margin-right: 0.5rem;
+  transform: scale(1.2);
+}
+
+/* ===== TABLES ===== */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+th {
+  background: var(--azure-blue);
+  color: white;
+  font-weight: 600;
+  padding: 1rem;
+  text-align: left;
+}
+
+td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #e1e5e9;
+}
+
+tr:nth-child(even) {
+  background-color: var(--azure-light-blue);
+}
+
+/* ===== LINKS ===== */
+a {
+  color: var(--azure-blue);
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+
+a:hover {
+  color: var(--azure-dark-blue);
+  text-decoration: underline;
+}
+
+/* ===== BUTTONS (pour les blocs de code interactifs) ===== */
+.code-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #2d2d2d;
+  color: white;
+  padding: 0.5rem 1.5rem;
+  border-radius: 6px 6px 0 0;
+  font-size: 0.9em;
+}
+
+.copy-btn {
+  background: var(--azure-blue);
+  color: white;
+  border: none;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8em;
+  transition: background 0.3s ease;
+}
+
+.copy-btn:hover {
+  background: var(--azure-dark-blue);
+}
+
+/* ===== RESPONSIVE DESIGN ===== */
+@media (max-width: 768px) {
+  body {
+    font-size: 14px;
+    padding: 1rem;
+  }
+  
+  .quarto-title h1.title {
+    font-size: 2rem;
+  }
+  
+  #TOC {
+    margin-bottom: 2rem;
+  }
+  
+  pre {
+    padding: 1rem;
+    font-size: 0.9em;
+  }
+}
+
+/* ===== ANIMATIONS ===== */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.quarto-title-block, section {
+  animation: fadeIn 0.5s ease-out;
+}
+
+/* ===== PRINT STYLES ===== */
+@media print {
+  .quarto-title-block {
+    page-break-after: avoid;
+  }
+  
+  h1, h2, h3 {
+    page-break-after: avoid;
+  }
+  
+  pre, blockquote {
+    page-break-inside: avoid;
+  }
+  
+  #TOC {
+    display: none;
+  }
+}
+
+/* ===== UTILITY CLASSES ===== */
+.azure-badge {
+  background: var(--azure-blue);
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.8em;
+  font-weight: 600;
+  display: inline-block;
+  margin: 0.25rem;
+}
+
+.warning-box {
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 6px;
+  padding: 1rem;
+  margin: 1rem 0;
+}
+
+.success-box {
+  background: #d1e7dd;
+  border: 1px solid var(--success-green);
+  border-radius: 6px;
+  padding: 1rem;
+  margin: 1rem 0;
+}
+
+/* ===== COMMAND LINE STYLING ===== */
+.command-line {
+  background: #1e1e1e;
+  color: #ffffff;
+  padding: 1rem;
+  border-radius: 6px;
+  font-family: 'Cascadia Code', 'Consolas', monospace;
+  margin: 1rem 0;
+  position: relative;
+}
+
+.command-line::before {
+  content: "$";
+  color: var(--azure-blue);
+  margin-right: 0.5rem;
+  font-weight: bold;
+}
