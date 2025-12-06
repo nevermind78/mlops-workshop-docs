@@ -1,435 +1,410 @@
-/* ===== STYLES PROFESSIONNELS POUR WORKSHOP MLOPS ===== */
-
-/* Variables de couleurs Azure professionnelles */
-/* Variables de couleurs Azure professionnelles */
+/* ===== VARIABLES ET RESET ===== */
 :root {
-  --azure-blue: #0078d4;
-  --azure-dark-blue: #005a9e;
-  --azure-light-blue: #f3f9ff;
-  --azure-border: #c7e0f4;
-  --success-green: #107c10;
-  --warning-orange: #d83b01;
-  --gray-light: #f8f9fa;
-  --gray-medium: #8a8d91;  /* Éclairci de #6c757d */
-  --gray-dark: #5a5a5a;    /* Éclairci de #323130 */
-  --gray-border: #e1e5e9;
+  --primary-color: #2E86AB;
+  --secondary-color: #A23B72;
+  --accent-color: #F18F01;
+  --success-color: #06A77D;
+  --danger-color: #C73E1D;
+  --dark-color: #2C3E50;
+  --light-color: #F8F9FA;
+  --text-color: #333333;
+  --border-color: #E0E0E0;
+  --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --border-radius: 8px;
 }
 
-/* ===== OVERALL STYLES ===== */
+* {
+  box-sizing: border-box;
+}
+
 body {
-  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   line-height: 1.6;
-  color: var(--gray-dark);
+  color: var(--text-color);
   background-color: #ffffff;
-  font-size: 16px;
 }
 
-/* ===== HEADER STYLES ===== */
-.quarto-title-block .quarto-title {
-  border-bottom: 2px solid var(--azure-border);
-  padding-bottom: 1.5rem;
-  margin-bottom: 2rem;
-}
-
-.quarto-title h1.title {
-  color: var(--azure-dark-blue);
-  font-weight: 600;
-  font-size: 2.25rem;
-  margin-bottom: 0.5rem;
-}
-
-/* ===== VERSION CONSERVATIVE ===== */
-#TOC {
-  background: white;
-  border-radius: 0;
-  padding: 0;
-  border: none;
-  box-shadow: none;
-  width: 280px !important;
-}
-
-/* Niveau 1 - Sections principales */
-#TOC .nav-link {
-  font-size: 1.1em !important;
-  font-weight: 600;
-  color: var(--azure-dark-blue);
-  padding: 1rem 1rem;
-  border-bottom: 2px solid var(--azure-border);
-  white-space: normal !important;
-  word-wrap: break-word !important;
-  line-height: 1.4;
-}
-
-/* Niveau 2 - Sous-sections */
-#TOC ul ul .nav-link {
-  font-size: 1em !important;
-  font-weight: 500;
-  color: var(--gray-dark);
-  padding: 0.8rem 1rem 0.8rem 2rem;
-  border-bottom: 1px solid var(--gray-border);
-  white-space: normal !important;
-  word-wrap: break-word !important;
-  line-height: 1.4;
-}
-
-/* Niveau 3 - Sous-sous-sections */
-#TOC ul ul ul .nav-link {
-  font-size: 0.9em !important;
-  font-weight: 400;
-  color: var(--gray-medium);
-  padding: 0.6rem 1rem 0.6rem 3rem;
-  border-bottom: 1px solid var(--gray-border);
-  white-space: normal !important;
-  word-wrap: break-word !important;
-  line-height: 1.4;
-}
-
-/* Styles communs */
-#TOC .nav-link:hover {
-  color: var(--azure-blue);
-  background-color: var(--azure-light-blue);
-}
-
-#TOC .nav-link.active {
-  color: var(--azure-blue);
-  font-weight: 600;
-  background-color: var(--azure-light-blue);
-  border-left: 4px solid var(--azure-blue);
-}
-
-/* ===== HEADINGS ===== */
-h1, h2, h3, h4, h5, h6 {
-  color: var(--azure-dark-blue);
-  font-weight: 600;
-  margin-top: 2rem;
-  margin-bottom: 1rem;
-}
-
+/* ===== HEADERS STYLISÉS ===== */
 h1 {
-  border-bottom: 2px solid var(--azure-blue);
-  padding-bottom: 0.75rem;
+  color: var(--text-color);
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.5rem;
+  margin-bottom: 1.5rem;
+  font-weight: 700;
 }
 
 h2 {
-  background: var(--azure-light-blue);
-  padding: 1rem 1.5rem;
-  border-radius: 8px;
-  border-left: 4px solid var(--azure-blue);
-  margin: 2rem 0 1.5rem 0;
+  color: var(--text-color);
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  padding-left: 0.5rem;
+  border-left: 4px solid var(--border-color);
 }
 
 h3 {
-  color: var(--azure-blue);
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--azure-border);
+  color: var(--text-color);
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
 }
 
-/* ===== CODE BLOCKS - FOND CLAIR ===== */
-pre, code {
-  font-family: 'Cascadia Code', 'Consolas', 'Monaco', 'Menlo', monospace;
+h4, h5, h6 {
+  color: var(--text-color);
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
 }
 
-pre {
-  background: var(--azure-light-blue) !important;
-  border: 1px solid var(--azure-border) !important;
-  border-radius: 8px;
-  padding: 1.5rem;
-  margin: 1.5rem 0;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
-  color: var(--gray-dark) !important;
-  font-size: 0.9em;
-  line-height: 1.5;
+/* ===== NAVBAR PERSONNALISÉE ===== */
+.navbar {
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%) !important;
+  box-shadow: var(--shadow);
 }
 
-code:not(pre code) {
-  background: var(--azure-light-blue);
-  color: var(--azure-dark-blue);
-  padding: 0.2em 0.4em;
-  border-radius: 4px;
-  font-size: 0.88em;
-  border: 1px solid var(--azure-border);
+.navbar-brand {
+  font-weight: 700;
+  font-size: 1.4rem;
+}
+
+.navbar-nav .nav-link {
+  color: white !important;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  border-radius: var(--border-radius);
+  transition: all 0.3s ease;
+}
+
+.navbar-nav .nav-link:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+/* ===== SIDEBAR PROFESSIONNELLE ===== */
+.sidebar {
+  background-color: var(--light-color);
+  border-right: 1px solid var(--border-color);
+  padding: 1rem;
+}
+
+.sidebar-item {
+  margin-bottom: 0.5rem;
+}
+
+.sidebar-item a {
+  color: var(--text-color);
+  text-decoration: none;
+  padding: 0.5rem 1rem;
+  border-radius: var(--border-radius);
+  transition: all 0.3s ease;
+  display: block;
   font-weight: 500;
 }
 
-/* Syntax highlighting pour fond clair */
-pre .kw { color: #0000ff; font-weight: 600; } /* keywords */
-pre .dt { color: #267f99; } /* data types */
-pre .dv { color: #098658; } /* values */
-pre .st { color: #a31515; } /* strings */
-pre .co { color: #008000; font-style: italic; } /* comments */
-pre .fu { color: #795e26; } /* functions */
-pre .ot { color: #af00db; } /* other */
-
-/* ===== BLOCKS AND CALL-OUTS ===== */
-blockquote {
-  background: var(--azure-light-blue);
-  border-left: 4px solid var(--azure-blue);
-  padding: 1.5rem;
-  margin: 1.5rem 0;
-  border-radius: 0 8px 8px 0;
-  font-style: normal;
-  color: var(--gray-dark);
+.sidebar-item a:hover {
+  background-color: var(--primary-color);
+  color: white;
+  transform: translateX(5px);
 }
 
-/* Styles pour les checkpoints */
-.checkpoint {
-  background: linear-gradient(135deg, #f8fbff 0%, #f0f7ff 100%);
-  border: 2px solid var(--azure-border);
-  border-radius: 12px;
-  padding: 2rem;
-  margin: 2rem 0;
-  box-shadow: 0 4px 12px rgba(0, 120, 212, 0.08);
+.sidebar-item-section {
+  color: var(--text-color);
+  font-weight: 700;
+  font-size: 1.1rem;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  padding-left: 1rem;
+  border-left: 3px solid var(--border-color);
 }
 
-.checkpoint h4 {
-  color: var(--azure-blue);
-  margin-top: 0;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  font-size: 1.2em;
+/* ===== CARDS ET SECTIONS ===== */
+.card {
+  border: none;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
   margin-bottom: 1.5rem;
+  transition: transform 0.3s ease;
 }
 
-.checkpoint h4::before {
-  content: "📋";
-  font-size: 1.3em;
+.card:hover {
+  transform: translateY(-5px);
 }
 
-/* ===== LISTS ===== */
+.card-header {
+  background-color: var(--light-color);
+  color: var(--text-color);
+  font-weight: 600;
+  border: none;
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* ===== TABLEAUX STYLISÉS ===== */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  box-shadow: var(--shadow);
+  border-radius: var(--border-radius);
+  overflow: hidden;
+}
+
+th {
+  background-color: var(--light-color);
+  color: var(--text-color);
+  font-weight: 600;
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 2px solid var(--border-color);
+}
+
+td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+tr:nth-child(even) {
+  background-color: var(--light-color);
+}
+
+tr:hover {
+  background-color: rgba(46, 134, 171, 0.1);
+}
+
+/* ===== BLOCS DE CODE ===== */
+pre {
+  background-color: #2d2d2d;
+  color: #f8f8f2;
+  padding: 1.5rem;
+  border-radius: var(--border-radius);
+  border-left: 4px solid var(--accent-color);
+  overflow-x: auto;
+  box-shadow: var(--shadow);
+}
+
+code {
+  background-color: rgba(46, 134, 171, 0.1);
+  color: var(--primary-color);
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
+/* ===== DIAGRAMMES MERMAID ===== */
+.mermaid {
+  background-color: white;
+  padding: 1.5rem;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  margin: 1.5rem 0;
+  border: 1px solid var(--border-color);
+}
+
+/* ===== BLOCS SPÉCIAUX ===== */
+.alert {
+  border-radius: var(--border-radius);
+  border: none;
+  padding: 1rem 1.5rem;
+  margin: 1rem 0;
+  box-shadow: var(--shadow);
+}
+
+.alert-info {
+  background: linear-gradient(135deg, #d1ecf1, #bee5eb);
+  color: #0c5460;
+  border-left: 4px solid var(--primary-color);
+}
+
+.alert-warning {
+  background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+  color: #856404;
+  border-left: 4px solid var(--accent-color);
+}
+
+.alert-success {
+  background: linear-gradient(135deg, #d4edda, #c3e6cb);
+  color: #155724;
+  border-left: 4px solid var(--success-color);
+}
+
+/* ===== BADGES ET LABELS ===== */
+.badge {
+  padding: 0.4rem 0.8rem;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+.badge-primary {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.badge-secondary {
+  background-color: var(--secondary-color);
+  color: white;
+}
+
+.badge-accent {
+  background-color: var(--accent-color);
+  color: white;
+}
+
+/* ===== BOUTONS ===== */
+.btn {
+  border-radius: var(--border-radius);
+  padding: 0.5rem 1.5rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  border: none;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  color: white;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* ===== OBJECTIFS ET DURÉE ===== */
+.objectif-section {
+  background: linear-gradient(135deg, var(--light-color), #e9ecef);
+  padding: 1.5rem;
+  border-radius: var(--border-radius);
+  border-left: 4px solid var(--success-color);
+  margin: 1.5rem 0;
+  box-shadow: var(--shadow);
+}
+
+.duree-badge {
+  background: var(--accent-color);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: var(--border-radius);
+  font-weight: 600;
+  display: inline-block;
+  margin-bottom: 1rem;
+}
+
+/* ===== LISTES STYLISÉES ===== */
 ul, ol {
   padding-left: 1.5rem;
 }
 
 li {
-  margin-bottom: 0.75rem;
-  line-height: 1.7;
+  margin-bottom: 0.5rem;
 }
 
-/* Style spécial pour les listes de vérification */
-ul.task-list {
-  list-style: none;
-  padding-left: 0;
-  background: white;
-  border-radius: 8px;
+ul li::marker {
+  color: var(--primary-color);
+}
+
+ol li::marker {
+  color: var(--secondary-color);
+  font-weight: 600;
+}
+
+/* ===== BLOCS EXERCICES ===== */
+.exercice {
+  background: linear-gradient(135deg, #fff, #f8f9fa);
+  border: 2px solid var(--border-color);
+  border-radius: var(--border-radius);
   padding: 1.5rem;
-  border: 1px solid var(--azure-border);
+  margin: 1.5rem 0;
+  box-shadow: var(--shadow);
+  border-left: 4px solid var(--accent-color);
 }
 
-ul.task-list li {
-  padding: 1rem 1rem;
-  border-bottom: 1px solid var(--gray-border);
+.exercice-title {
+  color: var(--accent-color);
+  font-weight: 700;
+  margin-bottom: 1rem;
   display: flex;
   align-items: center;
-  gap: 1rem;
-  transition: background-color 0.2s ease;
+  gap: 0.5rem;
 }
 
-ul.task-list li:last-child {
-  border-bottom: none;
+/* ===== CHECKLIST ===== */
+.checklist {
+  list-style: none;
+  padding-left: 0;
 }
 
-ul.task-list li:hover {
-  background-color: var(--azure-light-blue);
-  border-radius: 6px;
-}
-
-ul.task-list li input[type="checkbox"] {
-  margin: 0;
-  transform: scale(1.3);
-  accent-color: var(--azure-blue);
-}
-
-/* ===== TABLES ===== */
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 2rem 0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-th {
-  background: var(--azure-blue);
-  color: white;
-  font-weight: 600;
-  padding: 1.25rem 1.5rem;
-  text-align: left;
-  font-size: 0.95em;
-}
-
-td {
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid var(--azure-border);
-  background: white;
-}
-
-tr:nth-child(even) td {
-  background-color: var(--azure-light-blue);
-}
-
-/* ===== LINKS ===== */
-a {
-  color: var(--azure-blue);
-  text-decoration: none;
-  font-weight: 500;
-  transition: all 0.2s ease;
-}
-
-a:hover {
-  color: var(--azure-dark-blue);
-  text-decoration: underline;
-}
-
-/* ===== COMMAND LINE STYLING ===== */
-.command-line {
-  background: var(--azure-light-blue);
-  color: var(--gray-dark);
-  padding: 1.25rem 1.5rem;
-  border-radius: 8px;
-  font-family: 'Cascadia Code', 'Consolas', monospace;
-  margin: 1.5rem 0;
-  border: 1px solid var(--azure-border);
-  border-left: 4px solid var(--azure-blue);
-  font-size: 0.9em;
+.checklist li {
+  padding-left: 2rem;
   position: relative;
+  margin-bottom: 0.75rem;
 }
 
-.command-line::before {
-  content: "$";
-  color: var(--azure-blue);
-  margin-right: 0.75rem;
+.checklist li:before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  color: var(--success-color);
   font-weight: bold;
-  font-size: 1.1em;
+  font-size: 1.1rem;
 }
 
 /* ===== RESPONSIVE DESIGN ===== */
 @media (max-width: 768px) {
+  .sidebar {
+    position: static;
+    width: 100%;
+  }
+  
   body {
-    font-size: 15px;
     padding: 1rem;
   }
   
-  .quarto-title h1.title {
-    font-size: 1.75rem;
+  h1 {
+    font-size: 1.8rem;
   }
   
-  #TOC {
-    margin-bottom: 2rem;
-    padding: 1rem;
-  }
-  
-  pre {
-    padding: 1.25rem;
-    font-size: 0.85em;
-  }
-  
-  .checkpoint {
-    padding: 1.5rem;
+  h2 {
+    font-size: 1.5rem;
   }
 }
 
-/* ===== PRINT STYLES ===== */
-@media print {
-  .quarto-title-block {
-    page-break-after: avoid;
+/* ===== ANIMATIONS ===== */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
   }
-  
-  h1, h2, h3 {
-    page-break-after: avoid;
-  }
-  
-  pre, blockquote {
-    page-break-inside: avoid;
-  }
-  
-  #TOC {
-    display: none;
-  }
-  
-  pre {
-    background: #f8f9fa !important;
-    border: 1px solid #dee2e6 !important;
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
-/* ===== UTILITY CLASSES ===== */
-.azure-badge {
-  background: var(--azure-blue);
+.main-content {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+/* ===== FOOTER PERSONNALISÉ ===== */
+footer {
+  background-color: var(--dark-color);
   color: white;
-  padding: 0.4rem 1rem;
-  border-radius: 20px;
-  font-size: 0.8em;
-  font-weight: 600;
-  display: inline-block;
-  margin: 0.25rem;
-  box-shadow: 0 2px 4px rgba(0, 120, 212, 0.2);
+  text-align: center;
+  padding: 2rem;
+  margin-top: 3rem;
+  border-top: 4px solid var(--accent-color);
 }
 
-.warning-box {
-  background: #fff8e1;
-  border: 2px solid #ffb300;
-  border-radius: 8px;
-  padding: 1.5rem;
-  margin: 1.5rem 0;
-  color: #5d4037;
+/* ===== SCROLLBAR PERSONNALISÉE ===== */
+::-webkit-scrollbar {
+  width: 8px;
 }
 
-.warning-box h4 {
-  color: #f57c00;
-  margin-top: 0;
+::-webkit-scrollbar-track {
+  background: var(--light-color);
 }
 
-.success-box {
-  background: #e8f5e8;
-  border: 2px solid var(--success-green);
-  border-radius: 8px;
-  padding: 1.5rem;
-  margin: 1.5rem 0;
-  color: #1b5e20;
-}
-
-.success-box h4 {
-  color: var(--success-green);
-  margin-top: 0;
-}
-
-/* ===== CODE HEADER STYLING ===== */
-.code-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: var(--azure-blue);
-  color: white;
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px 8px 0 0;
-  font-size: 0.85em;
-  font-weight: 500;
-}
-
-.copy-btn {
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  padding: 0.4rem 1rem;
+::-webkit-scrollbar-thumb {
+  background: var(--primary-color);
   border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.8em;
-  transition: all 0.2s ease;
 }
 
-.copy-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
-}
-
-/* ===== SMOOTH SCROLLING ===== */
-html {
-  scroll-behavior: smooth;
-}
-
-/* ===== FOCUS STYLES ===== */
-a:focus, button:focus {
-  outline: 2px solid var(--azure-blue);
-  outline-offset: 2px;
+::-webkit-scrollbar-thumb:hover {
+  background: var(--secondary-color);
 }
