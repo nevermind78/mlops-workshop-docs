@@ -647,9 +647,10 @@ curl -X POST "http://localhost:8000/predict" \
     "Geography_Spain": 1
   }'
 ```
-### Jupyter Lab 
 
-```python
+### Jupyter Lab
+
+``` python
 #dans jupyter lab
 import requests
 import json
@@ -851,132 +852,207 @@ Avant de passer au module suivant, vérifiez que :
 :::
 ::::
 
+
 ## Module 4 : Déploiement sur Azure {#sec-module4}
 
 ### Objectif {#sec-module4-objectif}
-
 Déployer l'API sur Azure Container Apps et la rendre accessible publiquement.
 
-### Étape 1 : Création du Groupe de Ressources {#sec-module4-etape1}
+### Prérequis {#sec-module4-prerequis}
+1. **Docker Desktop** en cours d'exécution (mode WSL2 recommandé)
+2. **Azure CLI** installé et connecté (`az login`)
+3. **Image locale** `bank-churn-api:v1` déjà construite
 
-``` bash
+### Étape 1 : Création du Groupe de Ressources {#sec-module4-etape1}
+```bash
 # Variables (MODIFIEZ avec vos valeurs)
 RESOURCE_GROUP="rg-mlops-workshop"
 LOCATION="westeurope"
-ACR_NAME="acrmlops$(whoami)$(date +%s)"  # Doit etre unique globalement
+ACR_NAME="acrmlops$(whoami)$(date +%s)"  # Doit être unique globalement
 CONTAINER_APP_NAME="app-churn-api"
 
-# Creation du groupe de ressources
+# Vérifier et définir le contexte Azure (IMPORTANT)
+echo "Vérification du contexte Azure..."
+az account show --query "{name:name, cloudName:cloudName}" || az login
+
+# Création du groupe de ressources
+echo "Création du groupe de ressources..."
 az group create \
   --name $RESOURCE_GROUP \
   --location $LOCATION
 
-echo "Groupe de ressources cree : $RESOURCE_GROUP"
+echo "✅ Groupe de ressources créé : $RESOURCE_GROUP"
 ```
 
 ### Étape 2 : Azure Container Registry (ACR) {#sec-module4-etape2}
-
-``` bash
-# Creation du registry (SKU Basic pour economiser)
+```bash
+# Création du registry
+echo "Création du Container Registry..."
 az acr create \
   --resource-group $RESOURCE_GROUP \
   --name $ACR_NAME \
   --sku Basic \
-  --admin-enabled true
+  --admin-enabled true \
+  --location $LOCATION
 
-echo "Container Registry cree : $ACR_NAME"
+echo "✅ Container Registry créé : $ACR_NAME"
 
 # Se connecter au registry
+echo "Connexion au registry..."
 az acr login --name $ACR_NAME
 
-# Verifier la connexion
-az acr show --name $ACR_NAME --query loginServer --output tsv
+# Vérification de la création
+echo "Vérification de la connexion..."
+az acr check-health --name $ACR_NAME --ignore-helm --ignore-notary --yes
 ```
 
 ### Étape 3 : Push de l'Image vers ACR {#sec-module4-etape3}
-
-``` bash
-# Recuperer l'URL du registry
-ACR_LOGIN_SERVER=$(az acr show --name $ACR_NAME --query loginServer --output tsv)
+```bash
+# Récupérer l'URL du registry (CORRECTION DU RETOUR CHARIOT)
+echo "Récupération de l'URL du registry..."
+ACR_LOGIN_SERVER=$(az acr show --name $ACR_NAME --query loginServer --output tsv | tr -d '\r')
+echo "Login Server nettoyé : '$ACR_LOGIN_SERVER'"
 
 # Tagger l'image pour ACR
+echo "Tagging des images..."
 docker tag bank-churn-api:v1 $ACR_LOGIN_SERVER/bank-churn-api:v1
 docker tag bank-churn-api:v1 $ACR_LOGIN_SERVER/bank-churn-api:latest
 
-# Pousser l'image vers ACR
+# Pousser les images vers ACR
+echo "Pushing des images vers ACR..."
 docker push $ACR_LOGIN_SERVER/bank-churn-api:v1
 docker push $ACR_LOGIN_SERVER/bank-churn-api:latest
 
-# Verifier que l'image est bien dans ACR
+# Vérification
+echo "Vérification des images dans ACR..."
 az acr repository list --name $ACR_NAME --output table
 az acr repository show-tags --name $ACR_NAME --repository bank-churn-api --output table
 ```
 
 ### Étape 4 : Création de l'Environnement Container Apps {#sec-module4-etape4}
-
-``` bash
+```bash
 # Variables
 CONTAINERAPPS_ENV="env-mlops-workshop"
 
-# Creation de l'environnement
+# Création de l'environnement
+echo "Création de l'environnement Container Apps..."
 az containerapp env create \
   --name $CONTAINERAPPS_ENV \
   --resource-group $RESOURCE_GROUP \
   --location $LOCATION
 
-echo "Environnement Container Apps cree : $CONTAINERAPPS_ENV"
+echo "✅ Environnement Container Apps créé : $CONTAINERAPPS_ENV"
 ```
 
 ### Étape 5 : Déploiement de l'Application {#sec-module4-etape5}
 
-``` bash
-# Recuperer les credentials ACR
+::: callout-important
+## ⚠️ Problème connu avec les secrets ACR
+
+La commande `az containerapp create` génère automatiquement un nom de secret invalide.
+Nous utilisons une approche YAML pour contourner ce problème.
+:::
+
+```bash
+# Récupérer les credentials ACR
+echo "Récupération des credentials ACR..."
 ACR_USERNAME=$(az acr credential show --name $ACR_NAME --query username -o tsv)
 ACR_PASSWORD=$(az acr credential show --name $ACR_NAME --query passwords[0].value -o tsv)
 
-# Deployer l'application
+# Créer le fichier de configuration YAML
+cat > containerapp.yaml << 'EOFYAML'
+properties:
+  configuration:
+    activeRevisionsMode: Single
+    ingress:
+      external: true
+      targetPort: 8000
+      allowInsecure: false
+      traffic:
+      - weight: 100
+        latestRevision: true
+    secrets:
+    - name: acrpassword
+      value: ACR_PASSWORD_PLACEHOLDER
+    registries:
+    - server: ACR_LOGIN_SERVER_PLACEHOLDER
+      username: ACR_USERNAME_PLACEHOLDER
+      passwordSecretRef: acrpassword
+  template:
+    containers:
+    - image: ACR_LOGIN_SERVER_PLACEHOLDER/bank-churn-api:v1
+      name: app-churn-api
+      resources:
+        cpu: 0.5
+        memory: 1Gi
+      env:
+      - name: PYTHONUNBUFFERED
+        value: "1"
+    scale:
+      minReplicas: 1
+      maxReplicas: 3
+EOFYAML
+
+# Remplacer les placeholders (compatible WSL)
+sed "s|ACR_PASSWORD_PLACEHOLDER|$ACR_PASSWORD|g" containerapp.yaml > containerapp_tmp.yaml && mv containerapp_tmp.yaml containerapp.yaml
+sed "s|ACR_USERNAME_PLACEHOLDER|$ACR_USERNAME|g" containerapp.yaml > containerapp_tmp.yaml && mv containerapp_tmp.yaml containerapp.yaml
+sed "s|ACR_LOGIN_SERVER_PLACEHOLDER|$ACR_LOGIN_SERVER|g" containerapp.yaml > containerapp_tmp.yaml && mv containerapp_tmp.yaml containerapp.yaml
+
+# Déployer l'application
+echo "Déploiement de l'application Container App..."
 az containerapp create \
   --name $CONTAINER_APP_NAME \
   --resource-group $RESOURCE_GROUP \
   --environment $CONTAINERAPPS_ENV \
-  --image $ACR_LOGIN_SERVER/bank-churn-api:v1 \
-  --registry-server $ACR_LOGIN_SERVER \
-  --registry-username $ACR_USERNAME \
-  --registry-password $ACR_PASSWORD \
-  --target-port 8000 \
-  --ingress external \
-  --min-replicas 1 \
-  --max-replicas 3 \
-  --cpu 0.5 \
-  --memory 1Gi
+  --yaml containerapp.yaml
 
-echo "Application deployee !"
+echo "✅ Application déployée !"
+
+# Nettoyage du fichier temporaire
+rm -f containerapp.yaml
 ```
 
 ### Étape 6 : Récupérer l'URL Publique {#sec-module4-etape6}
+```bash
+# Attendre le démarrage complet
+echo "⏳ Attente du démarrage de l'application (30 secondes)..."
+sleep 30
 
-``` bash
-# Recuperer l'URL de l'application
+# Vérifier l'état
+az containerapp show \
+  --name $CONTAINER_APP_NAME \
+  --resource-group $RESOURCE_GROUP \
+  --query "{Name:name, State:properties.provisioningState, RunningStatus:properties.runningStatus}" \
+  --output table
+
+# Récupérer l'URL de l'application
+echo "Récupération de l'URL publique..."
 APP_URL=$(az containerapp show \
   --name $CONTAINER_APP_NAME \
   --resource-group $RESOURCE_GROUP \
   --query properties.configuration.ingress.fqdn -o tsv)
 
+echo ""
 echo "=========================================="
-echo "API deployee avec succes !"
+echo "✅ API déployée avec succès !"
+echo "=========================================="
 echo "URL : https://$APP_URL"
 echo "Health check : https://$APP_URL/health"
 echo "Documentation : https://$APP_URL/docs"
 echo "=========================================="
+echo ""
 
-# Tester l'API deployee
-curl https://$APP_URL/health
+# Test initial
+echo "Test du endpoint /health..."
+curl -s https://$APP_URL/health
+echo ""
 ```
 
 ### Étape 7 : Test de l'API en Production {#sec-module4-etape7}
 
-``` bash
-# Test de prediction
+```bash
+# Test de prédiction simple
+echo "Test de prédiction..."
 curl -X POST "https://$APP_URL/predict" \
   -H "Content-Type: application/json" \
   -d '{
@@ -990,21 +1066,78 @@ curl -X POST "https://$APP_URL/predict" \
     "EstimatedSalary": 75000,
     "Geography_Germany": 0,
     "Geography_Spain": 1
-  }'
+}'
+echo ""
 ```
+
+### 🔧 Résolution des problèmes {#sec-module4-troubleshooting}
+
+| Problème | Solution |
+|----------|----------|
+| **Erreur DNS / `cloudName: null`** | Exécuter `az logout && az login` |
+| **Caractère `\r` dans les variables** | Toujours utiliser `tr -d '\r'` après `az acr show` |
+| **Erreur "ContainerAppInvalidSecretName"** | Utiliser l'approche YAML avec secret nommé `acrpassword` |
+| **Docker non accessible** | Démarrer Docker Desktop et ouvrir un nouveau terminal |
+| **Erreurs de permissions** | Vérifier `az account show` et `az login` |
+| **L'application est "Failed"** | Vérifier les logs : `az containerapp logs show --name $CONTAINER_APP_NAME --resource-group $RESOURCE_GROUP --tail 50` |
+| **Image fonctionne localement mais pas sur Azure** | Vérifier les credentials ACR et l'identité managée |
+
+### 📋 Commandes de diagnostic utiles {#sec-module4-diagnostic}
+
+```bash
+# Voir les logs en temps réel
+az containerapp logs show \
+  --name $CONTAINER_APP_NAME \
+  --resource-group $RESOURCE_GROUP \
+  --tail 100 \
+  --follow
+
+# Vérifier l'état détaillé
+az containerapp revision list \
+  --name $CONTAINER_APP_NAME \
+  --resource-group $RESOURCE_GROUP \
+  --output table
+
+# Tester l'image localement
+docker run -p 8000:8000 $ACR_LOGIN_SERVER/bank-churn-api:v1
+```
+
+### 📊 Alternative : Déploiement via le Portail Azure {#sec-module4-portail}
+
+Si vous préférez utiliser l'interface graphique :
+
+1. Allez sur **portal.azure.com**
+2. Recherchez **"Container Apps"**
+3. Cliquez sur **"+ Create"**
+4. **Basics** :
+   - Resource group : `rg-mlops-workshop`
+   - Container app name : `app-churn-api`
+   - Region : `West Europe`
+   - Environment : `env-mlops-workshop`
+5. **Container** :
+   - Image source : **Azure Container Registry**
+   - Registry : Sélectionnez votre ACR
+   - Image : `bank-churn-api`
+   - Tag : `v1`
+   - CPU : `0.5`, Memory : `1.0 Gi`
+6. **Ingress** :
+   - Enabled : **Oui**
+   - Traffic : **Accepting traffic from anywhere**
+   - Target port : `8000`
+7. **Review + Create**
 
 ### Surveillance des Coûts {#sec-module4-couts}
 
 ::: callout-warning
 ## IMPORTANT - Gestion du Budget
 
-Pour éviter de dépasser le budget de 100\$ :
+Pour éviter de dépasser le budget de 100$ :
 
-``` bash
-# Voir les couts estimes
+```bash
+# Voir les coûts estimés
 az consumption usage list \
-  --start-date 2024-11-01 \
-  --end-date 2024-11-30 \
+  --start-date 2024-12-01 \
+  --end-date 2024-12-31 \
   --output table
 
 # Mettre l'application en veille (min-replicas=0)
@@ -1013,9 +1146,12 @@ az containerapp update \
   --resource-group $RESOURCE_GROUP \
   --min-replicas 0 \
   --max-replicas 3
+
+# Supprimer toutes les ressources après le workshop
+az group delete --name $RESOURCE_GROUP --yes --no-wait
 ```
 
-Coûts estimés pour ce workshop : 8-12\$ pour 10 heures d'utilisation.
+Coûts estimés pour ce workshop : 8-12$ pour 10 heures d'utilisation.
 :::
 
 ### Exercice Pratique {#sec-module4-exercice}
@@ -1025,10 +1161,29 @@ Coûts estimés pour ce workshop : 8-12\$ pour 10 heures d'utilisation.
 
 Partagez votre URL d'API avec un camarade et testez son API :
 
-1.  Faites 10 prédictions sur son API
-2.  Comparez les résultats avec votre modèle
-3.  Observez les logs dans Azure Portal
+1. Faites 10 prédictions sur son API
+2. Comparez les résultats avec votre modèle
+3. Observez les logs dans Azure Portal :
+   - Allez dans votre Container App
+   - Menu **"Log stream"** ou **"Monitoring" → "Logs"**
+   - Observez les requêtes en temps réel
 :::
+
+### 🎯 Points clés des corrections apportées {#sec-module4-resume}
+
+1. **Nettoyage du `\r`** : Ajout de `tr -d '\r'` à la récupération du login server
+2. **Approche YAML** : Contournement du bug de génération de nom de secret
+3. **Secret nommé** : Utilisation d'un nom valide `acrpassword` au lieu du nom auto-généré
+4. **Variables d'environnement** : Ajout de `PYTHONUNBUFFERED=1` pour les logs
+5. **Tests robustes** : Attente de 30 secondes avant les vérifications
+6. **Commandes de diagnostic** : Ajout de commandes pour troubleshooting
+7. **Alternative GUI** : Instructions pour le déploiement via le portail Azure
+
+Pour exécuter le module, sauvegardez-le dans un fichier `module4-deploiement.sh` et exécutez :
+```bash
+chmod +x module4-deploiement.sh
+./module4-deploiement.sh
+```
 
 ### Checkpoint {#sec-module4-checkpoint}
 
