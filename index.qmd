@@ -866,7 +866,7 @@ Déployer l'API sur Azure Container Apps et la rendre accessible publiquement.
 ### Étape 1 : Création du Groupe de Ressources {#sec-module4-etape1}
 ```bash
 # Variables (MODIFIEZ avec vos valeurs)
-RESOURCE_GROUP="rg-mlops-workshop"
+RESOURCE_GROUP="rg-mlops"
 LOCATION="westeurope"
 ACR_NAME="acrmlops$(whoami)$(date +%s)"  # Doit être unique globalement
 CONTAINER_APP_NAME="app-churn-api"
@@ -1110,7 +1110,7 @@ Si vous préférez utiliser l'interface graphique :
 2. Recherchez **"Container Apps"**
 3. Cliquez sur **"+ Create"**
 4. **Basics** :
-   - Resource group : `rg-mlops-workshop`
+   - Resource group : `rg-mlops`
    - Container app name : `app-churn-api`
    - Region : `West Europe`
    - Environment : `env-mlops-workshop`
@@ -1136,8 +1136,8 @@ Pour éviter de dépasser le budget de 100$ :
 ```bash
 # Voir les coûts estimés
 az consumption usage list \
-  --start-date 2024-12-01 \
-  --end-date 2024-12-31 \
+  --start-date 2025-12-01 \
+  --end-date 2025-12-31 \
   --output table
 
 # Mettre l'application en veille (min-replicas=0)
@@ -1292,7 +1292,7 @@ on:
   workflow_dispatch:
 
 env:
-  AZURE_RESOURCE_GROUP: rg-mlops-workshop
+  AZURE_RESOURCE_GROUP: rg-mlops
   ACR_NAME: votre-acr-name  # MODIFIEZ ICI
   CONTAINER_APP_NAME: app-churn-api
   IMAGE_NAME: bank-churn-api
@@ -1670,7 +1670,7 @@ Créez `cleanup.sh` :
 ``` bash
 #!/bin/bash
 
-RESOURCE_GROUP="rg-mlops-workshop"
+RESOURCE_GROUP="rg-mlops"
 
 echo "=========================================="
 echo "Nettoyage des ressources Azure"
