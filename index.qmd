@@ -870,6 +870,7 @@ RESOURCE_GROUP="rg-mlops"
 LOCATION="westeurope"
 ACR_NAME="acrmlops$(whoami)$(date +%s)"  # Doit être unique globalement
 CONTAINER_APP_NAME="app-churn-api"
+CONTAINERAPPS_ENV="env-mlops-workshop"
 
 # Vérifier et définir le contexte Azure (IMPORTANT)
 echo "Vérification du contexte Azure..."
