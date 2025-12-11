@@ -932,9 +932,6 @@ az acr repository show-tags --name $ACR_NAME --repository bank-churn-api --outpu
 
 ### Étape 4 : Création de l'Environnement Container Apps {#sec-module4-etape4}
 ```bash
-# Variables
-CONTAINERAPPS_ENV="env-mlops-workshop"
-
 # Création de l'environnement
 echo "Création de l'environnement Container Apps..."
 az containerapp env create \
