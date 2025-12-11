@@ -1110,8 +1110,32 @@ az containerapp revision list \
   --resource-group $RESOURCE_GROUP \
   --output table
 
-# Tester l'image localement
-docker run -p 8000:8000 $ACR_LOGIN_SERVER/bank-churn-api:v1
+# Récupération automatique et test Docker
+RESOURCE_GROUP="rg-mlops1"
+ACR_NAME=$(az acr list --resource-group $RESOURCE_GROUP --query "[0].name" -o tsv | tr -d '\r\n' | xargs)
+ACR_LOGIN_SERVER=$(az acr show --name $ACR_NAME --query loginServer --output tsv | tr -d '\r\n' | xargs)
+
+echo "ACR trouvé: $ACR_LOGIN_SERVER"
+echo "Lancement de l'image..."
+
+docker run -p 8000:8000 ${ACR_LOGIN_SERVER}/bank-churn-api:v1
+
+
+# tester l'api 
+curl -X POST "http://localhost:8000/predict" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "CreditScore": 650,
+    "Age": 35,
+    "Tenure": 5,
+    "Balance": 50000,
+    "NumOfProducts": 2,
+    "HasCrCard": 1,
+    "IsActiveMember": 1,
+    "EstimatedSalary": 75000,
+    "Geography_Germany": 0,
+    "Geography_Spain": 1
+  }'
 ```
 
 ### 📊 Alternative : Déploiement via le Portail Azure {#sec-module4-portail}
