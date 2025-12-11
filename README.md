@@ -1,5 +1,7 @@
 # mlops-workshop-docs
 
+[![Documentation](https://img.shields.io/badge/docs-online-brightgreen)](https://nevermind78.github.io/mlops-workshop-docs/)
+
 Prérequis pour utiliser Azure CLI avec ces commandes
 
 ## 1. Compte Azure Actif
