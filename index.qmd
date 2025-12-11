@@ -852,22 +852,24 @@ Avant de passer au module suivant, vérifiez que :
 :::
 ::::
 
-
 ## Module 4 : Déploiement sur Azure {#sec-module4}
 
 ### Objectif {#sec-module4-objectif}
+
 Déployer l'API sur Azure Container Apps et la rendre accessible publiquement.
 
 ### Prérequis {#sec-module4-prerequis}
-1. **Docker Desktop** en cours d'exécution (mode WSL2 recommandé)
-2. **Azure CLI** installé et connecté (`az login`)
-3. **Image locale** `bank-churn-api:v1` déjà construite
+
+1.  **Docker Desktop** en cours d'exécution (mode WSL2 recommandé)
+2.  **Azure CLI** installé et connecté (`az login`)
+3.  **Image locale** `bank-churn-api:v1` déjà construite
 
 ### Étape 1 : Création du Groupe de Ressources {#sec-module4-etape1}
-```bash
+
+``` bash
 # Variables (MODIFIEZ avec vos valeurs)
 RESOURCE_GROUP="rg-mlops"
-LOCATION="westeurope"
+LOCATION="francecentral"
 ACR_NAME="acrmlops$(whoami)$(date +%s)"  # Doit être unique globalement
 CONTAINER_APP_NAME="app-churn-api"
 CONTAINERAPPS_ENV="env-mlops-workshop"
@@ -875,6 +877,13 @@ CONTAINERAPPS_ENV="env-mlops-workshop"
 # Vérifier et définir le contexte Azure (IMPORTANT)
 echo "Vérification du contexte Azure..."
 az account show --query "{name:name, cloudName:cloudName}" || az login
+
+# Enregistrer le fournisseur de ressources pour Microsoft.ContainerRegistry si ce n'est pas déjà fait
+echo "Enregistrement du fournisseur de ressources Microsoft.ContainerRegistry..."
+az provider register --namespace Microsoft.ContainerRegistry
+
+# Vérifier que le fournisseur est bien enregistré
+az provider show --namespace Microsoft.ContainerRegistry --query "registrationState"
 
 # Création du groupe de ressources
 echo "Création du groupe de ressources..."
@@ -886,8 +895,9 @@ echo "✅ Groupe de ressources créé : $RESOURCE_GROUP"
 ```
 
 ### Étape 2 : Azure Container Registry (ACR) {#sec-module4-etape2}
-```bash
-# Création du registry
+
+``` bash
+# Création du Container Registry
 echo "Création du Container Registry..."
 az acr create \
   --resource-group $RESOURCE_GROUP \
@@ -902,13 +912,14 @@ echo "✅ Container Registry créé : $ACR_NAME"
 echo "Connexion au registry..."
 az acr login --name $ACR_NAME
 
-# Vérification de la création
+# Vérification de la connexion au registry
 echo "Vérification de la connexion..."
-az acr check-health --name $ACR_NAME --ignore-helm --ignore-notary --yes
+az acr check-health --name $ACR_NAME 
 ```
 
 ### Étape 3 : Push de l'Image vers ACR {#sec-module4-etape3}
-```bash
+
+``` bash
 # Récupérer l'URL du registry (CORRECTION DU RETOUR CHARIOT)
 echo "Récupération de l'URL du registry..."
 ACR_LOGIN_SERVER=$(az acr show --name $ACR_NAME --query loginServer --output tsv | tr -d '\r')
@@ -931,7 +942,8 @@ az acr repository show-tags --name $ACR_NAME --repository bank-churn-api --outpu
 ```
 
 ### Étape 4 : Création de l'Environnement Container Apps {#sec-module4-etape4}
-```bash
+
+``` bash
 # Création de l'environnement
 echo "Création de l'environnement Container Apps..."
 az containerapp env create \
@@ -947,11 +959,10 @@ echo "✅ Environnement Container Apps créé : $CONTAINERAPPS_ENV"
 ::: callout-important
 ## ⚠️ Problème connu avec les secrets ACR
 
-La commande `az containerapp create` génère automatiquement un nom de secret invalide.
-Nous utilisons une approche YAML pour contourner ce problème.
+La commande `az containerapp create` génère automatiquement un nom de secret invalide. Nous utilisons une approche YAML pour contourner ce problème.
 :::
 
-```bash
+``` bash
 # Récupérer les credentials ACR
 echo "Récupération des credentials ACR..."
 ACR_USERNAME=$(az acr credential show --name $ACR_NAME --query username -o tsv)
@@ -1011,7 +1022,8 @@ rm -f containerapp.yaml
 ```
 
 ### Étape 6 : Récupérer l'URL Publique {#sec-module4-etape6}
-```bash
+
+``` bash
 # Attendre le démarrage complet
 echo "⏳ Attente du démarrage de l'application (30 secondes)..."
 sleep 30
@@ -1048,7 +1060,7 @@ echo ""
 
 ### Étape 7 : Test de l'API en Production {#sec-module4-etape7}
 
-```bash
+``` bash
 RESOURCE_GROUP="rg-mlops1"
 CONTAINER_APP_NAME="app-churn-api"
 
@@ -1085,7 +1097,7 @@ curl -X POST "$FULL_URL" \
 ### 🔧 Résolution des problèmes {#sec-module4-troubleshooting}
 
 | Problème | Solution |
-|----------|----------|
+|------------------------------------|------------------------------------|
 | **Erreur DNS / `cloudName: null`** | Exécuter `az logout && az login` |
 | **Caractère `\r` dans les variables** | Toujours utiliser `tr -d '\r'` après `az acr show` |
 | **Erreur "ContainerAppInvalidSecretName"** | Utiliser l'approche YAML avec secret nommé `acrpassword` |
@@ -1096,7 +1108,7 @@ curl -X POST "$FULL_URL" \
 
 ### 📋 Commandes de diagnostic utiles {#sec-module4-diagnostic}
 
-```bash
+``` bash
 # Voir les logs en temps réel
 az containerapp logs show \
   --name $CONTAINER_APP_NAME \
@@ -1142,34 +1154,34 @@ curl -X POST "http://localhost:8000/predict" \
 
 Si vous préférez utiliser l'interface graphique :
 
-1. Allez sur **portal.azure.com**
-2. Recherchez **"Container Apps"**
-3. Cliquez sur **"+ Create"**
-4. **Basics** :
-   - Resource group : `rg-mlops`
-   - Container app name : `app-churn-api`
-   - Region : `West Europe`
-   - Environment : `env-mlops-workshop`
-5. **Container** :
-   - Image source : **Azure Container Registry**
-   - Registry : Sélectionnez votre ACR
-   - Image : `bank-churn-api`
-   - Tag : `v1`
-   - CPU : `0.5`, Memory : `1.0 Gi`
-6. **Ingress** :
-   - Enabled : **Oui**
-   - Traffic : **Accepting traffic from anywhere**
-   - Target port : `8000`
-7. **Review + Create**
+1.  Allez sur **portal.azure.com**
+2.  Recherchez **"Container Apps"**
+3.  Cliquez sur **"+ Create"**
+4.  **Basics** :
+    -   Resource group : `rg-mlops`
+    -   Container app name : `app-churn-api`
+    -   Region : `West Europe`
+    -   Environment : `env-mlops-workshop`
+5.  **Container** :
+    -   Image source : **Azure Container Registry**
+    -   Registry : Sélectionnez votre ACR
+    -   Image : `bank-churn-api`
+    -   Tag : `v1`
+    -   CPU : `0.5`, Memory : `1.0 Gi`
+6.  **Ingress** :
+    -   Enabled : **Oui**
+    -   Traffic : **Accepting traffic from anywhere**
+    -   Target port : `8000`
+7.  **Review + Create**
 
 ### Surveillance des Coûts {#sec-module4-couts}
 
 ::: callout-warning
 ## IMPORTANT - Gestion du Budget
 
-Pour éviter de dépasser le budget de 100$ :
+Pour éviter de dépasser le budget de 100\$ :
 
-```bash
+``` bash
 # Voir les coûts estimés
 az consumption usage list \
   --start-date 2025-12-01 \
@@ -1187,7 +1199,7 @@ az containerapp update \
 az group delete --name $RESOURCE_GROUP --yes --no-wait
 ```
 
-Coûts estimés pour ce workshop : 8-12$ pour 10 heures d'utilisation.
+Coûts estimés pour ce workshop : 8-12\$ pour 10 heures d'utilisation.
 :::
 
 ### Exercice Pratique {#sec-module4-exercice}
@@ -1197,26 +1209,27 @@ Coûts estimés pour ce workshop : 8-12$ pour 10 heures d'utilisation.
 
 Partagez votre URL d'API avec un camarade et testez son API :
 
-1. Faites 10 prédictions sur son API
-2. Comparez les résultats avec votre modèle
-3. Observez les logs dans Azure Portal :
-   - Allez dans votre Container App
-   - Menu **"Log stream"** ou **"Monitoring" → "Logs"**
-   - Observez les requêtes en temps réel
+1.  Faites 10 prédictions sur son API
+2.  Comparez les résultats avec votre modèle
+3.  Observez les logs dans Azure Portal :
+    -   Allez dans votre Container App
+    -   Menu **"Log stream"** ou **"Monitoring" → "Logs"**
+    -   Observez les requêtes en temps réel
 :::
 
 ### 🎯 Points clés des corrections apportées {#sec-module4-resume}
 
-1. **Nettoyage du `\r`** : Ajout de `tr -d '\r'` à la récupération du login server
-2. **Approche YAML** : Contournement du bug de génération de nom de secret
-3. **Secret nommé** : Utilisation d'un nom valide `acrpassword` au lieu du nom auto-généré
-4. **Variables d'environnement** : Ajout de `PYTHONUNBUFFERED=1` pour les logs
-5. **Tests robustes** : Attente de 30 secondes avant les vérifications
-6. **Commandes de diagnostic** : Ajout de commandes pour troubleshooting
-7. **Alternative GUI** : Instructions pour le déploiement via le portail Azure
+1.  **Nettoyage du `\r`** : Ajout de `tr -d '\r'` à la récupération du login server
+2.  **Approche YAML** : Contournement du bug de génération de nom de secret
+3.  **Secret nommé** : Utilisation d'un nom valide `acrpassword` au lieu du nom auto-généré
+4.  **Variables d'environnement** : Ajout de `PYTHONUNBUFFERED=1` pour les logs
+5.  **Tests robustes** : Attente de 30 secondes avant les vérifications
+6.  **Commandes de diagnostic** : Ajout de commandes pour troubleshooting
+7.  **Alternative GUI** : Instructions pour le déploiement via le portail Azure
 
 Pour exécuter le module, sauvegardez-le dans un fichier `module4-deploiement.sh` et exécutez :
-```bash
+
+``` bash
 chmod +x module4-deploiement.sh
 ./module4-deploiement.sh
 ```
