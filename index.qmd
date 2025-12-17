@@ -1240,7 +1240,7 @@ az provider register --namespace Microsoft.OperationalInsights --wait
 3.  **Remplissez** :
     -   Abonnement : Votre abonnement
     -   Groupe de ressources : `rg-mlops-bank-churn`
-    -   Région : `France Central`
+    -   Région : `westeurope`
 4.  **Cliquez** sur "Vérifier + créer" puis "Créer"
 5.  **Attendez** le déploiement (≈30 secondes)
 
@@ -1255,7 +1255,7 @@ az provider register --namespace Microsoft.OperationalInsights --wait
 3.  **Onglet "Général"** :
     -   Groupe de ressources : `rg-mlops-bank-churn`
     -   Nom du registre : `acrmlops[VOTRE_USERNAME][TIMESTAMP]` *Ex: acrmlopsjean1648826400* (le nom doit être unique dans Azure et contenir de 5 à 50 caractères alphanumériques ).
-    -   Emplacement : `France Central`
+    -   Emplacement : `westeurope`
     -   SKU : `De base`
 4.  **Onglet "Authentification"** :
     -   ✅ Utilisateur administrateur → ACTIVÉ (utile pour les tests, mais privilégiez une identité Microsoft Entra pour les scénarios de production )
