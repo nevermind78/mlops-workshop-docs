@@ -1557,7 +1557,7 @@ Pour l'authentification avec Azure, l'action `azure/login@v1` attend un secret (
 
 **Option A (Recommandée) : Avec l'outil `jq`**
 
-Si `jq` n'est pas installé sur votre terminal linux , installer le avec 
+Si `jq` n'est pas installé sur votre terminal linux , installer le avec sudo
 ```bash
 sudo apt  install jq
 ```
