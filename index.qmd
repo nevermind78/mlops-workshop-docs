@@ -861,11 +861,7 @@ Déployer l'API sur Azure Container Apps et la rendre accessible publiquement.
 ### Prérequis {#sec-module4-prerequis}
 
 1.  **Docker Desktop** en cours d'exécution (mode WSL2 recommandé)
-<<<<<<< HEAD
 2.  **Configurer Docker** ![](image_docker.png)
-=======
-2.   **Configurer Docker** ![](image_docker.png)
->>>>>>> origin/main
 3.  **Azure CLI** installé et connecté (`az login`)
 4.  **Image locale** `churn-api:v1` déjà construite
 5.  **installer l'extension containerapp**
@@ -915,11 +911,7 @@ FALLBACK_LOCATION="northeurope"     # Fallback garanti
 ACR_NAME="mlops$(whoami | tr '[:upper:]' '[:lower:]' | tr -cd '[:alnum:]')"  # 100% minuscules
 CONTAINER_APP_NAME="bank-churn" 
 CONTAINERAPPS_ENV="env-mlops-workshop"
-<<<<<<< HEAD
 IMAGE_NAME="churn-api"
-=======
-IMAGE_NAME="bank-churn-api"
->>>>>>> origin/main
 IMAGE_TAG="v1"
 TARGET_PORT=8000
 
@@ -1205,41 +1197,26 @@ curl -X POST "http://localhost:8000/predict" \
 
 ### 📊 Alternative : Déploiement via le Portail Azure {#sec-module4-portail}
 
-<<<<<<< HEAD
 #### **Objectif**
 
 Reproduire EXACTEMENT le script Bash fourni en utilisant UNIQUEMENT l'interface graphique Azure Portal.
 
 #### **Prérequis**
 
-=======
-
-#### **Objectif**
-Reproduire EXACTEMENT le script Bash fourni en utilisant UNIQUEMENT l'interface graphique Azure Portal.
-
-#### **Prérequis**
->>>>>>> origin/main
 1.  Compte Azure avec abonnement actif
 2.  Accès à [portal.azure.com](https://portal.azure.com)
 3.  Dockerfile et code de l'application `bank-churn-api` prêts localement
 
-<<<<<<< HEAD
 ------------------------------------------------------------------------
 
 #### **ÉTAPE 0: Connexion Azure**
 
-=======
----
-
-#### **ÉTAPE 0: Connexion Azure**
->>>>>>> origin/main
 1.  **Connectez-vous** à [portal.azure.com](https://portal.azure.com)
 2.  **Vérifiez votre abonnement** :
     -   En haut à droite → Cliquez sur votre profil
     -   "Changer de répertoire" si besoin
     -   L'abonnement actif s'affiche dans le panneau latéral gauche
 
-<<<<<<< HEAD
 ------------------------------------------------------------------------
 
 #### **ÉTAPE 1: Vérifier/Créer les Fournisseurs (Providers)**
@@ -1247,16 +1224,6 @@ Reproduire EXACTEMENT le script Bash fourni en utilisant UNIQUEMENT l'interface 
 ⚠️ **Cette étape n'est pas faisable dans le portail** Les providers s'enregistrent automatiquement lors de la première utilisation du service. **Alternative** : Utilisez Azure Cloud Shell (Bash) pour cette partie uniquement :
 
 ``` bash
-=======
----
-
-#### **ÉTAPE 1: Vérifier/Créer les Fournisseurs (Providers)**
-⚠️ **Cette étape n'est pas faisable dans le portail**
-Les providers s'enregistrent automatiquement lors de la première utilisation du service.
-**Alternative** : Utilisez Azure Cloud Shell (Bash) pour cette partie uniquement  :
-
-```bash
->>>>>>> origin/main
 # Dans Azure Cloud Shell (icône >_ en haut du portail)
 az provider register --namespace Microsoft.ContainerRegistry --wait
 az provider register --namespace Microsoft.App --wait
@@ -1264,18 +1231,11 @@ az provider register --namespace Microsoft.Web --wait
 az provider register --namespace Microsoft.OperationalInsights --wait
 ```
 
-<<<<<<< HEAD
 ------------------------------------------------------------------------
 
 #### **ÉTAPE 2: Groupe de Ressources**
 
 1.  **Recherchez** "Groupes de ressources" dans la barre de recherche
-=======
----
-
-#### **ÉTAPE 2: Groupe de Ressources**
-1.  **Recherchez** "Groupes de ressources" dans la barre de recherche 
->>>>>>> origin/main
 2.  **Cliquez** sur "+ Créer"
 3.  **Remplissez** :
     -   Abonnement : Votre abonnement
@@ -1284,7 +1244,6 @@ az provider register --namespace Microsoft.OperationalInsights --wait
 4.  **Cliquez** sur "Vérifier + créer" puis "Créer"
 5.  **Attendez** le déploiement (≈30 secondes)
 
-<<<<<<< HEAD
 ------------------------------------------------------------------------
 
 #### **ÉTAPE 3: Container Registry (ACR)**
@@ -1296,18 +1255,6 @@ az provider register --namespace Microsoft.OperationalInsights --wait
 3.  **Onglet "Général"** :
     -   Groupe de ressources : `rg-MLopsyy`
     -   Nom du registre : `acrmlops[VOTRE_USERNAME][TIMESTAMP]` *Ex: acrmlopsjean1648826400* (le nom doit être unique dans Azure et contenir de 5 à 50 caractères alphanumériques ).
-=======
----
-
-#### **ÉTAPE 3: Container Registry (ACR)**
-##### **3.1 Création ACR**
-1.  **Recherchez** "Registres de conteneurs" 
-2.  **Cliquez** sur "+ Créer"
-3.  **Onglet "Général"** :
-    -   Groupe de ressources : `rg-MLopsyy`
-    -   Nom du registre : `acrmlops[VOTRE_USERNAME][TIMESTAMP]`
-        *Ex: acrmlopsjean1648826400* (le nom doit être unique dans Azure et contenir de 5 à 50 caractères alphanumériques ).
->>>>>>> origin/main
     -   Emplacement : `France Central`
     -   SKU : `De base`
 4.  **Onglet "Authentification"** :
@@ -1315,7 +1262,6 @@ az provider register --namespace Microsoft.OperationalInsights --wait
 5.  **Cliquez** sur "Vérifier + créer" puis "Créer"
 
 ##### **3.2 Fallback si France Central bloqué**
-<<<<<<< HEAD
 
 Si erreur de stratégie : 1. **Recommencez** l'étape 3.1 2. **Changez** l'emplacement : `West Europe` 3. **Notez** la nouvelle région pour les étapes suivantes
 
@@ -1326,18 +1272,6 @@ Si erreur de stratégie : 1. **Recommencez** l'étape 3.1 2. **Changez** l'empla
 ##### **4.1 Préparer localement**
 
 ``` bash
-=======
-Si erreur de stratégie :
-1.  **Recommencez** l'étape 3.1
-2.  **Changez** l'emplacement : `West Europe`
-3.  **Notez** la nouvelle région pour les étapes suivantes
-
----
-
-#### **ÉTAPE 4: Build et Push de l'Image**
-##### **4.1 Préparer localement**
-```bash
->>>>>>> origin/main
 # Sur VOTRE machine locale (pas dans le portail)
 cd /chemin/vers/votre/projet
 
@@ -1350,15 +1284,10 @@ docker tag bank-churn-api:v1 acrmlopsjean1648826400.azurecr.io/bank-churn-api:la
 ```
 
 ##### **4.2 Push vers ACR**
-<<<<<<< HEAD
 
 ###### **Option A: Via Azure CLI local**
 
 ``` bash
-=======
-###### **Option A: Via Azure CLI local**
-```bash
->>>>>>> origin/main
 # Login ACR avec votre identité individuelle 
 az acr login --name acrmlopsjean1648826400
 
@@ -1368,16 +1297,10 @@ docker push acrmlopsjean1648826400.azurecr.io/bank-churn-api:latest
 ```
 
 ###### **Option B: Via Portail Azure (ACR Tasks)**
-<<<<<<< HEAD
 
 1.  **Allez** dans votre ACR créé
 2.  **Menu gauche** → "Services" → "Tâches"
 3.  **Cliquez** sur "+ Tâche"
-=======
-1.  **Allez** dans votre ACR créé
-2.  **Menu gauche** → "Services" → "Tâches"
-3.  **Cliquez** sur "+ Tâche" 
->>>>>>> origin/main
 4.  **Configurez** :
     -   Type de tâche : Tâche rapide
     -   Platform : Linux
@@ -1386,44 +1309,26 @@ docker push acrmlopsjean1648826400.azurecr.io/bank-churn-api:latest
     -   Uploader votre code ZIP ou Dockerfile
 5.  **Exécutez** la tâche
 
-<<<<<<< HEAD
 ------------------------------------------------------------------------
 
 #### **ÉTAPE 5: Log Analytics Workspace**
 
-=======
----
-
-#### **ÉTAPE 5: Log Analytics Workspace**
->>>>>>> origin/main
 1.  **Recherchez** "Espaces de travail Log Analytics"
 2.  **Cliquez** sur "+ Créer"
 3.  **Remplissez** :
     -   Groupe de ressources : `rg-MLopsyy`
-<<<<<<< HEAD
     -   Nom : `law-mlops-[VOTRE_USERNAME]-[RANDOM]` *Ex: law-mlops-jean-12345*
-=======
-    -   Nom : `law-mlops-[VOTRE_USERNAME]-[RANDOM]`
-        *Ex: law-mlops-jean-12345*
->>>>>>> origin/main
     -   Région : Même que l'ACR (France Central ou West Europe)
 4.  **Cliquez** sur "Vérifier + créer" puis "Créer"
 5.  **Notez** :
     -   **ID de l'espace de travail** (customerId)
     -   **Clé primaire** (primarySharedKey)
 
-<<<<<<< HEAD
 ------------------------------------------------------------------------
 
 #### **ÉTAPE 6: Container Apps Environment**
 
 1.  **Recherchez** "Environnements Container Apps"
-=======
----
-
-#### **ÉTAPE 6: Container Apps Environment**
-1.  **Recherchez** "Environnements Container Apps" 
->>>>>>> origin/main
 2.  **Cliquez** sur "+ Créer"
 3.  **Onglet "Général"** :
     -   Nom de l'environnement : `env-mlops-workshop`
@@ -1435,7 +1340,6 @@ docker push acrmlopsjean1648826400.azurecr.io/bank-churn-api:latest
     -   Espace de travail Log Analytics : Sélectionnez celui créé à l'étape 5
 5.  **Cliquez** sur "Vérifier + créer" puis "Créer"
 
-<<<<<<< HEAD
 ------------------------------------------------------------------------
 
 #### **ÉTAPE 7: Container App (Application)**
@@ -1445,15 +1349,6 @@ docker push acrmlopsjean1648826400.azurecr.io/bank-churn-api:latest
 1.  **Recherchez** "Container Apps"
 2.  **Cliquez** sur "+ Créer" \> "Container App"
 3.  **Onglet "Général"** :
-=======
----
-
-#### **ÉTAPE 7: Container App (Application)**
-##### **7.1 Création**
-1.  **Recherchez** "Container Apps" 
-2.  **Cliquez** sur "+ Créer" > "Container App"
-3.  **Onglet "Général"**  :
->>>>>>> origin/main
     -   Abonnement : Votre abonnement
     -   Groupe de ressources : `rg-MLopsyy`
     -   Nom de l'application conteneur : `bank-churn-api` (entre 2 et 32 caractères, lettres minuscules, chiffres et tirets )
@@ -1461,10 +1356,7 @@ docker push acrmlopsjean1648826400.azurecr.io/bank-churn-api:latest
     -   Environnement Container Apps : Sélectionnez `env-mlops-workshop` (créé précédemment)
 
 ##### **7.2 Onglet "Application"**
-<<<<<<< HEAD
 
-=======
->>>>>>> origin/main
 1.  **Section "Image"** :
     -   Source de l'image : "Azure Container Registry"
     -   Registre : Sélectionnez votre ACR
@@ -1473,12 +1365,8 @@ docker push acrmlopsjean1648826400.azurecr.io/bank-churn-api:latest
     -   Type d'authentification du registre : "Informations d'identification de l'administrateur" (utilisez les clés d'accès de l'ACR pour ce workshop )
     -   Nom d'utilisateur/Password : Récupérez-les dans ACR → "Clés d'accès"
 
-<<<<<<< HEAD
 ##### **7.3 Onglet "Ingress"**
 
-=======
-##### **7.3 Onglet "Ingress"** 
->>>>>>> origin/main
 1.  **Trafic entrant** : ✅ Activé
 2.  **Visibilité du trafic entrant** : `Accepting traffic from anywhere` (pour un accès externe )
 3.  **Type d'entrée** : `HTTP`
@@ -1486,27 +1374,16 @@ docker push acrmlopsjean1648826400.azurecr.io/bank-churn-api:latest
 5.  **Connexions non sécurisées** : Décochez (laissez `false` par défaut pour forcer HTTPS )
 
 ##### **7.4 Onglet "Mise à l'échelle"**
-<<<<<<< HEAD
 
 Pour ce workshop et pour optimiser les coûts : 1. **Mode de mise à l'échelle** : "Aucune mise à l'échelle automatique" 2. **Nombre minimal de réplicas** : `1` 3. **Nombre maximal de réplicas** : `1`
 
 ::: callout-note
 #### Bonne pratique en production
 
-=======
-Pour ce workshop et pour optimiser les coûts :
-1.  **Mode de mise à l'échelle** : "Aucune mise à l'échelle automatique"
-2.  **Nombre minimal de réplicas** : `1`
-3.  **Nombre maximal de réplicas** : `1`
-
-::: {.callout-note}
-#### Bonne pratique en production
->>>>>>> origin/main
 Pour une meilleure fiabilité en production, il est recommandé de configurer au moins 3 réplicas et d'activer la mise à l'échelle automatique basée sur les métriques HTTP ou CPU pour gérer les pics de charge .
 :::
 
 ##### **7.5 Finalisation**
-<<<<<<< HEAD
 
 -   **Cliquez** sur "Vérifier + créer" puis "Créer"
 -   **Attendez** le déploiement (≈2-3 minutes)
@@ -1515,36 +1392,21 @@ Pour une meilleure fiabilité en production, il est recommandé de configurer au
 
 #### **ÉTAPE 8: Récupérer l'URL**
 
-=======
--   **Cliquez** sur "Vérifier + créer" puis "Créer"
--   **Attendez** le déploiement (≈2-3 minutes)
-
----
-
-#### **ÉTAPE 8: Récupérer l'URL**
->>>>>>> origin/main
 1.  **Allez** sur votre Container App `bank-churn-api`
 2.  **Menu gauche** → "Vue d'ensemble"
 3.  **Cherchez** "URL de l'application" (le FQDN généré automatiquement )
 4.  **Copiez** l'URL (format : `https://bank-churn-api.xxxxxxxx.region.azurecontainerapps.io`)
 
-<<<<<<< HEAD
 ------------------------------------------------------------------------
 
 #### **ÉTAPE 9: Tests**
 
-=======
----
-
-#### **ÉTAPE 9: Tests**
->>>>>>> origin/main
 1.  **Ouvrez** un navigateur
 2.  **Testez** :
     -   **Health** : `https://[VOTRE-URL]/health`
     -   **Documentation** : `https://[VOTRE-URL]/docs`
     -   **Swagger UI** : `https://[VOTRE-URL]/redoc`
 
-<<<<<<< HEAD
 ------------------------------------------------------------------------
 
 #### **Vérification Finale**
@@ -1553,15 +1415,6 @@ Comparez avec le script Bash :
 
 | Élément | Script Bash | Interface Graphique |
 |------------------|---------------------|---------------------------------|
-=======
----
-
-#### **Vérification Finale**
-Comparez avec le script Bash :
-
-| Élément | Script Bash | Interface Graphique |
-|---------|------------|-------------------|
->>>>>>> origin/main
 | Resource Group | `rg-MLopsyy` (France Central) | ✅ Identique |
 | ACR | Nom unique avec timestamp | ✅ Identique (5-50 caractères alphanumériques ) |
 | Fallback location | West Europe si blocage | ✅ Géré manuellement |
@@ -1569,7 +1422,6 @@ Comparez avec le script Bash :
 | Environment | `env-mlops-workshop` | ✅ Identique |
 | Container App | `bank-churn-api` port 8000 | ✅ Identique (2-32 caractères ) |
 | Image | `bank-churn-api:v1` | ✅ Identique |
-<<<<<<< HEAD
 | Ingress | Externe, HTTP, port 8000 | ✅ Identique |
 | Réplicas | min=1, max=1 | ✅ Identique |
 
@@ -1577,53 +1429,28 @@ Comparez avec le script Bash :
 
 #### **Points d'Attention**
 
-=======
-| Ingress | Externe, HTTP, port 8000 | ✅ Identique  |
-| Réplicas | min=1, max=1 | ✅ Identique |
-
----
-
-#### **Points d'Attention**
->>>>>>> origin/main
 1.  **Timestamp dans ACR** : Dans le portail, générez-le manuellement (ex: `date +%s` dans Cloud Shell)
 2.  **Authentification ACR** : Pour les scénarios de production, envisagez d'utiliser une **identité managée** au lieu des identifiants administrateur pour une sécurité et une gestion améliorées .
 3.  **Variables d'environnement** : Si votre app en a besoin, ajoutez-les dans l'onglet "Paramètres" du Container App.
 4.  **Logs** : Les logs sont automatiquement envoyés à Log Analytics configuré dans l'environnement.
 5.  **Sécurité réseau** : Pour restreindre l'accès, vous pouvez configurer ultérieurement des **restrictions d'adresse IP** sur l'ingress de votre application conteneur .
 
-<<<<<<< HEAD
 ------------------------------------------------------------------------
 
 #### **Résumé des URLs**
 
-=======
----
-
-#### **Résumé des URLs**
->>>>>>> origin/main
 -   **Portail Azure** : https://portal.azure.com
 -   **Votre API** : `https://bank-churn-api.[...].azurecontainerapps.io`
 -   **Health check** : `/health`
 -   **Documentation** : `/docs` (Swagger)
 -   **ACR** : `acrmlopsjean1648826400.azurecr.io`
 
-<<<<<<< HEAD
 ------------------------------------------------------------------------
 
 **Durée totale** : ≈15-20 minutes via l'interface graphique **Coût estimé** : \~5-10€/mois (ACR Basic + Container App en fonctionnement)
 
 **Remarque :** Il est important de conserver la section existante "Surveillance des Coûts {#sec-module4-couts}" qui suit immédiatement cette partie dans votre fichier.
 
-=======
----
-
-**Durée totale** : ≈15-20 minutes via l'interface graphique
-**Coût estimé** : ~5-10€/mois (ACR Basic + Container App en fonctionnement)
-
-**Remarque :** Il est important de conserver la section existante "Surveillance des Coûts {#sec-module4-couts}" qui suit immédiatement cette partie dans votre fichier.
-
-
->>>>>>> origin/main
 ### Exercice Pratique {#sec-module4-exercice}
 
 ::: callout-tip
@@ -1675,28 +1502,16 @@ Avant de passer au module suivant, vérifiez que :
 
 ### Objectif {#sec-module5-objectif}
 
-<<<<<<< HEAD
 Automatiser le déploiement : chaque commit sur la branche `main` déclenche un build et un redéploiement via un pipeline GitHub Actions.
-=======
-Automatiser le déploiement : chaque commit sur la branche main déclenche un build et un redéploiement.
->>>>>>> origin/main
 
 ### Étape 1 : Initialisation du Repository Git {#sec-module5-etape1}
 
 ``` bash
-<<<<<<< HEAD
 # Initialiser git avec 'main' comme branche par défaut
 git init -b main
 
 # Créer un .gitignore robuste
 cat > .gitignore << 'EOF'
-=======
-# Initialiser git (si pas deja fait)
-git init
-
-# Creer un .gitignore
-cat > .gitignore << EOF
->>>>>>> origin/main
 __pycache__/
 *.pyc
 venv/
@@ -1707,7 +1522,6 @@ mlruns/
 .vscode/
 confusion_matrix.png
 feature_importance.png
-<<<<<<< HEAD
 # Secrets (NE JAMAIS commiter)
 *.secret
 *.key
@@ -1715,8 +1529,6 @@ feature_importance.png
 credentials*.json
 resultat.txt
 azure-credentials.json
-=======
->>>>>>> origin/main
 EOF
 
 # Premier commit
@@ -1726,7 +1538,6 @@ git commit -m "Initial commit: Bank Churn API"
 
 ### Étape 2 : Créer un Repository GitHub {#sec-module5-etape2}
 
-<<<<<<< HEAD
 1.  Allez sur `https://github.com/new`
 2.  **Nom** : `bank-churn-mlops`
 3.  **Visibility** : Public ou Private
@@ -1736,24 +1547,12 @@ git commit -m "Initial commit: Bank Churn API"
 ``` bash
 # Lier votre repo local à GitHub
 git remote add origin https://github.com/votre-username/bank-churn-mlops.git
-=======
-1.  Allez sur https://github.com/new
-2.  Nom du repository : `bank-churn-mlops`
-3.  Visibility : Public ou Private
-4.  Ne pas initialiser avec README (déjà fait localement)
-5.  Cliquez sur "Create repository"
-
-``` bash
-# Lier votre repo local a GitHub (REMPLACEZ username)
-git remote add origin https://github.com/username/bank-churn-mlops.git
->>>>>>> origin/main
 git branch -M main
 git push -u origin main
 ```
 
 ### Étape 3 : Configuration des Secrets GitHub {#sec-module5-etape3}
 
-<<<<<<< HEAD
 Pour l'authentification avec Azure, l'action `azure/login@v1` attend un secret (`AZURE_CREDENTIALS`) contenant un **objet JSON avec exactement 4 clés**.
 
 #### Créer et formater les identifiants du Service Principal Azure
@@ -1887,44 +1686,6 @@ Créez le fichier `.github/workflows/ci-cd.yml` avec le contenu ci-dessous. **Re
 
 ``` yaml
 name: CI/CD Pipeline
-=======
-#### Créer un Service Principal Azure {#sec-module5-service-principal}
-
-``` bash
-# Recuperer votre Subscription ID
-SUBSCRIPTION_ID=$(az account show --query id -o tsv)
-
-# Creer un Service Principal
-az ad sp create-for-rbac \
-  --name "github-actions-mlops" \
-  --role contributor \
-  --scopes /subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP \
-  --sdk-auth
-```
-
-Copiez tout le JSON retourné.
-
-#### Ajouter les Secrets dans GitHub {#sec-module5-secrets}
-
-1.  Allez dans votre repository GitHub
-2.  Settings \> Secrets and variables \> Actions
-3.  Cliquez sur "New repository secret"
-4.  Ajoutez les secrets suivants :
-
-| **Nom** | **Valeur** |
-|------------------------------------|------------------------------------|
-| AZURE_CREDENTIALS | Le JSON du Service Principal |
-| ACR_USERNAME | Résultat de : `az acr credential show --name $ACR_NAME --query username -o tsv` |
-| ACR_PASSWORD | Résultat de : `az acr credential show --name $ACR_NAME --query passwords[0].value -o tsv` |
-
-### Étape 4 : Création du Workflow GitHub Actions {#sec-module5-etape4}
-
-Créez le fichier `.github/workflows/ci-cd.yml` :
-
-``` yaml
-name: CI/CD Pipeline
-
->>>>>>> origin/main
 on:
   push:
     branches: [ main ]
@@ -1933,37 +1694,22 @@ on:
   workflow_dispatch:
 
 env:
-<<<<<<< HEAD
   # ⚠️ REMPLACEZ CES VALEURS PAR LES VÔTRES ⚠️
   AZURE_RESOURCE_GROUP: rg-mlops-bank-churn
   ACR_NAME: mlopsnevermind          # Le nom de VOTRE ACR (étape 5.1)
   CONTAINER_APP_NAME: bank-churn    # Le nom de VOTRE Container App (étape 5.2)
-=======
-  AZURE_RESOURCE_GROUP: rg-mlops
-  ACR_NAME: votre-acr-name  # MODIFIEZ ICI
-  CONTAINER_APP_NAME: app-churn-api
->>>>>>> origin/main
   IMAGE_NAME: bank-churn-api
 
 jobs:
   test:
     runs-on: ubuntu-latest
-<<<<<<< HEAD
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-=======
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-      
->>>>>>> origin/main
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
-<<<<<<< HEAD
       - name: Install dependencies
         run: |
           pip install --upgrade pip
@@ -1984,40 +1730,11 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}  # Utilise le secret formaté
       - name: Login to Azure Container Registry (ACR)
-=======
-      
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pytest pytest-cov
-      
-      - name: Run tests
-        run: |
-          pytest tests/ -v --cov=app --cov-report=term
-      
-  build-and-deploy:
-    needs: test
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-      
-      - name: Azure Login
-        uses: azure/login@v1
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-      
-      - name: Login to ACR
->>>>>>> origin/main
         uses: azure/docker-login@v1
         with:
           login-server: ${{ env.ACR_NAME }}.azurecr.io
           username: ${{ secrets.ACR_USERNAME }}
           password: ${{ secrets.ACR_PASSWORD }}
-<<<<<<< HEAD
       - name: Build and push Docker image
         run: |
           # Construit l'image et la tagge avec le hash unique du commit
@@ -2028,16 +1745,6 @@ jobs:
           docker push ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
           docker push ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
           echo "✅ Images poussées dans ACR."
-=======
-      
-      - name: Build and push Docker image
-        run: |
-          docker build -t ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} .
-          docker build -t ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest .
-          docker push ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
-          docker push ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
-      
->>>>>>> origin/main
       - name: Deploy to Azure Container Apps
         uses: azure/CLI@v1
         with:
@@ -2046,21 +1753,14 @@ jobs:
               --name ${{ env.CONTAINER_APP_NAME }} \
               --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
               --image ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
-<<<<<<< HEAD
             echo "✅ Commande de déploiement envoyée à Azure."
       - name: Verify deployment
         run: |
           # Récupère l'URL publique de l'application
-=======
-      
-      - name: Verify deployment
-        run: |
->>>>>>> origin/main
           APP_URL=$(az containerapp show \
             --name ${{ env.CONTAINER_APP_NAME }} \
             --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
             --query properties.configuration.ingress.fqdn -o tsv)
-<<<<<<< HEAD
           echo "🌐 Votre API est déployée à l'adresse : https://$APP_URL"
           echo "🩺 Attente du démarrage (20s) et vérification..."
           sleep 20
@@ -2085,35 +1785,10 @@ git push origin main
 1.  Allez sur votre dépôt GitHub.
 2.  Cliquez sur l'onglet **"Actions"**.
 3.  Vous verrez l'exécution de votre workflow nommé **"CI/CD Pipeline"**. Cliquez dessus pour voir les détails et les logs en direct.
-=======
-          
-          echo "Application deployed at: https://$APP_URL"
-          
-          sleep 30
-          curl -f https://$APP_URL/health || exit 1
-          
-          echo "Deployment successful!"
-```
-
-### Étape 5 : Déclencher le Pipeline {#sec-module5-etape5}
-
-``` bash
-# Ajouter le workflow
-git add .github/workflows/ci-cd.yml
-git add tests/test_api.py
-git commit -m "Add CI/CD pipeline and tests"
-git push origin main
-
-# Le pipeline se declenche automatiquement !
-```
-
-Allez sur GitHub \> Actions pour voir le pipeline en cours d'exécution.
->>>>>>> origin/main
 
 ### Exercice Pratique {#sec-module5-exercice}
 
 ::: callout-tip
-<<<<<<< HEAD
 # EXERCICE 3
 
 1.  **Ajoutez un nouveau test** dans `test_api.py` pour tester un autre endpoint, par exemple l'endpoint `/docs` (documentation Swagger) qui devrait toujours être accessible. `python     def test_docs_endpoint():         """Test que la documentation Swagger est accessible"""         response = client.get("/docs")         assert response.status_code == 200`
@@ -2151,31 +1826,6 @@ Avant de passer au module suivant, vérifiez que ces conditions sont remplies :
 -   [ ] **Le pipeline CI/CD s'exécute sans erreur** dans l'onglet GitHub Actions (les jobs `test` et `build-and-deploy` sont verts ✅).
 -   [ ] **L'application se redéploie automatiquement** : après un `git push`, une nouvelle image est créée et votre API conteneurisée est mise à jour sur Azure.
 :::
-=======
-## EXERCICE 3
-
-1.  Ajoutez un nouveau test dans `test_api.py`
-2.  Faites un commit et push
-3.  Observez le pipeline s'exécuter
-4.  Vérifiez que le déploiement s'est bien fait
-:::
-
-### Checkpoint {#sec-module5-checkpoint}
-
-:::: callout-note
-## Validation Module 5
-
-Avant de passer au module suivant, vérifiez que :
-
-::: {style="margin-left: 20px; line-height: 1.8;"}
--   [ ] Le repository GitHub est créé
--   [ ] Les secrets sont configurés
--   [ ] Le workflow CI/CD s'exécute sans erreur
--   [ ] L'application se redéploie
-:::
-
-automatiquement
->>>>>>> origin/main
 ::::
 
 ## Module 6 : Monitoring et Maintenance {#sec-module6}
