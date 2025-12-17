@@ -905,7 +905,7 @@ set -euo pipefail
 #################################
 # VARIABLES DÉFINITIVES
 #################################
-RESOURCE_GROUP="rg-mlops"  
+RESOURCE_GROUP="rg-mlops-bank-churn"  
 LOCATION="westeurope"   # Forcé West Europe (garanti)
 FALLBACK_LOCATION="northeurope"     # Fallback garanti
 ACR_NAME="mlops$(whoami | tr '[:upper:]' '[:lower:]' | tr -cd '[:alnum:]')"  # 100% minuscules
@@ -1103,7 +1103,7 @@ echo "=========================================="
 ### Test de l'API en Production {#sec-module4-etape2}
 
 ``` bash
-RESOURCE_GROUP="rg-mlops"  # votre Ressource group
+RESOURCE_GROUP="rg-mlops-bank-churn"  # votre Ressource group
 
 CONTAINER_APP_NAME="bank-churn" # le nom de votre container app
 
@@ -1239,7 +1239,7 @@ az provider register --namespace Microsoft.OperationalInsights --wait
 2.  **Cliquez** sur "+ Créer"
 3.  **Remplissez** :
     -   Abonnement : Votre abonnement
-    -   Groupe de ressources : `rg-MLopsyy`
+    -   Groupe de ressources : `rg-mlops-bank-churn`
     -   Région : `France Central`
 4.  **Cliquez** sur "Vérifier + créer" puis "Créer"
 5.  **Attendez** le déploiement (≈30 secondes)
@@ -1253,7 +1253,7 @@ az provider register --namespace Microsoft.OperationalInsights --wait
 1.  **Recherchez** "Registres de conteneurs"
 2.  **Cliquez** sur "+ Créer"
 3.  **Onglet "Général"** :
-    -   Groupe de ressources : `rg-MLopsyy`
+    -   Groupe de ressources : `rg-mlops-bank-churn`
     -   Nom du registre : `acrmlops[VOTRE_USERNAME][TIMESTAMP]` *Ex: acrmlopsjean1648826400* (le nom doit être unique dans Azure et contenir de 5 à 50 caractères alphanumériques ).
     -   Emplacement : `France Central`
     -   SKU : `De base`
@@ -1316,7 +1316,7 @@ docker push acrmlopsjean1648826400.azurecr.io/bank-churn-api:latest
 1.  **Recherchez** "Espaces de travail Log Analytics"
 2.  **Cliquez** sur "+ Créer"
 3.  **Remplissez** :
-    -   Groupe de ressources : `rg-MLopsyy`
+    -   Groupe de ressources : `rg-mlops-bank-churn`
     -   Nom : `law-mlops-[VOTRE_USERNAME]-[RANDOM]` *Ex: law-mlops-jean-12345*
     -   Région : Même que l'ACR (France Central ou West Europe)
 4.  **Cliquez** sur "Vérifier + créer" puis "Créer"
@@ -1332,7 +1332,7 @@ docker push acrmlopsjean1648826400.azurecr.io/bank-churn-api:latest
 2.  **Cliquez** sur "+ Créer"
 3.  **Onglet "Général"** :
     -   Nom de l'environnement : `env-mlops-workshop`
-    -   Groupe de ressources : `rg-MLopsyy`
+    -   Groupe de ressources : `rg-mlops-bank-churn`
     -   Zone : Même région que l'ACR
     -   Type d'environnement : `Consumption only` (pour ce workshop)
 4.  **Onglet "Surveillance"** :
