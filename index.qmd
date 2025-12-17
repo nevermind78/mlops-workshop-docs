@@ -1501,10 +1501,12 @@ Avant de passer au module suivant, vérifiez que :
 ## Module 5 : CI/CD avec GitHub Actions {#sec-module5}
 
 ### Objectif {#sec-module5-objectif}
+
 Automatiser le déploiement : chaque commit sur la branche `main` déclenche un build et un redéploiement via un pipeline GitHub Actions.
 
 ### Étape 1 : Initialisation du Repository Git {#sec-module5-etape1}
-```bash
+
+``` bash
 # Initialiser git avec 'main' comme branche par défaut
 git init -b main
 
@@ -1536,14 +1538,13 @@ git commit -m "Initial commit: Bank Churn API"
 
 ### Étape 2 : Créer un Repository GitHub {#sec-module5-etape2}
 
-
 1.  Allez sur `https://github.com/new`
 2.  **Nom** : `bank-churn-mlops`
 3.  **Visibility** : Public ou Private
 4.  **Ne pas** initialiser avec README
 5.  Cliquez sur "Create repository"
 
-```bash
+``` bash
 # Lier votre repo local à GitHub
 git remote add origin https://github.com/votre-username/bank-churn-mlops.git
 git branch -M main
@@ -1551,18 +1552,22 @@ git push -u origin main
 ```
 
 ### Étape 3 : Configuration des Secrets GitHub {#sec-module5-etape3}
+
 Pour l'authentification avec Azure, l'action `azure/login@v1` attend un secret (`AZURE_CREDENTIALS`) contenant un **objet JSON avec exactement 4 clés**.
 
 #### Créer et formater les identifiants du Service Principal Azure
 
 **Option A (Recommandée) : Avec l'outil `jq`**
 
-Si `jq` n'est pas installé sur votre terminal linux , installer le avec sudo
-```bash
+Si `jq` n'est pas installé sur votre terminal linux , installer avec sudo
+
+``` bash
 sudo apt  install jq
 ```
+
 Puis éxécuter ceci :
-```bash
+
+``` bash
 RESOURCE_GROUP="rg-mlops-bank-churn"
 SUBSCRIPTION_ID=$(az account show --query id -o tsv | tr -d '\r')
 
@@ -1576,18 +1581,16 @@ SP_JSON=$(az ad sp create-for-rbac \
 # 2. Extraire et formater uniquement les 4 champs requis pour GitHub Actions
 echo $SP_JSON | jq -c '{clientId: .appId, clientSecret: .password, subscriptionId: "'"$SUBSCRIPTION_ID"'", tenantId: .tenant}'
 ```
+
 **Copiez l'objet JSON compact qui s'affiche.** Il ressemblera à ceci :
-```json
+
+``` json
 {"clientId":"xxxxxxxx-xxxx-...","clientSecret":"votre_mot_de_passe","subscriptionId":"e14fdc0f-d8cd-...","tenantId":"xxxxxxxx-xxxx-..."}
 ```
 
-**Option B (Manuelle) : Sans `jq`**
-Exécutez la commande standard et notez les valeurs pour `appId`, `password` et `tenant`. Composez ensuite **manuellement** l'objet JSON suivant en utilisant :
-- `appId` comme valeur pour `clientId`
-- `password` comme valeur pour `clientSecret`
-- Votre `subscriptionId` (`e14fdc0f-d8cd-4608-9a2e-d02e7b15366b`)
-- `tenant` comme valeur pour `tenantId`
-```json
+**Option B (Manuelle) : Sans `jq`** Exécutez la commande standard et notez les valeurs pour `appId`, `password` et `tenant`. Composez ensuite **manuellement** l'objet JSON suivant en utilisant : - `appId` comme valeur pour `clientId` - `password` comme valeur pour `clientSecret` - Votre `subscriptionId` (`e14fdc0f-d8cd-4608-9a2e-d02e7b15366b`) - `tenant` comme valeur pour `tenantId`
+
+``` json
 {
   "clientId": "xxxxxxxx-xxxx-...",
   "clientSecret": "votre_mot_de_passe",
@@ -1598,13 +1601,12 @@ Exécutez la commande standard et notez les valeurs pour `appId`, `password` et 
 
 #### Ajouter les Secrets dans GitHub
 
-
-1.  Allez dans votre repository GitHub : **Settings > Secrets and variables > Actions**
+1.  Allez dans votre repository GitHub : **Settings \> Secrets and variables \> Actions**
 2.  Cliquez sur **"New repository secret"**
 3.  Ajoutez ces trois secrets :
 
 | **Nom du Secret** | **Valeur à coller** | **Comment l'obtenir** |
-| :--- | :--- | :--- |
+|:-----------------------|:-----------------------|:-----------------------|
 | `AZURE_CREDENTIALS` | **L'objet JSON complet** (4 champs) généré à l'étape précédente. | Résultat de la commande avec `jq` ou création manuelle. |
 | `ACR_USERNAME` | Le nom d'utilisateur de votre ACR. | `az acr credential show --name <VOTRE_ACR> --query username -o tsv` |
 | `ACR_PASSWORD` | Le mot de passe de votre ACR. | `az acr credential show --name <VOTRE_ACR> --query "passwords[0].value" -o tsv` |
@@ -1612,9 +1614,10 @@ Exécutez la commande standard et notez les valeurs pour `appId`, `password` et 
 **Important** : Pour `AZURE_CREDENTIALS`, assurez-vous de copier **tout l'objet JSON en une seule ligne** dans le champ de valeur du secret, sans espaces avant ou après.
 
 ### Étape 4 : Préparation des Tests pour le Pipeline {#sec-module5-tests}
+
 Avant de configurer le workflow, assurez-vous d'avoir des tests valides. Créez ou mettez à jour `tests/test_api.py` :
 
-```python
+``` python
 # tests/test_api.py
 import sys
 import os
@@ -1653,14 +1656,16 @@ def test_predict_with_mock():
 ```
 
 **Exécution des tests en local (avant CI/CD)** :
-```bash
+
+``` bash
 python -m pytest tests/ -v
 ```
 
 ### Étape 5 : Vérification des Noms de Ressources (CRITIQUE) {#sec-module5-verif}
+
 Le pipeline échouera si les noms de vos ressources Azure ne correspondent pas. **Avant de créer le workflow**, vérifiez ces noms exacts :
 
-```bash
+``` bash
 # 1. Vérifier le nom exact de votre Azure Container Registry (ACR)
 az acr list --resource-group rg-mlops-bank-churn --query "[].name" -o tsv
 # Doit retourner quelque chose comme : mlopsnevermind
@@ -1672,12 +1677,14 @@ az containerapp list --resource-group rg-mlops-bank-churn --query "[].name" -o t
 # 3. Confirmer votre nom de groupe de ressources
 echo "rg-mlops-bank-churn"
 ```
+
 Notez ces noms, vous en aurez besoin pour l'étape suivante.
 
 ### Étape 6 : Création du Workflow GitHub Actions {#sec-module5-etape4}
+
 Créez le fichier `.github/workflows/ci-cd.yml` avec le contenu ci-dessous. **Remplacez les valeurs d'environnement (`env`)** par celles qui correspondent à **vos** ressources Azure, identifiées à l'étape 5.
 
-```yaml
+``` yaml
 name: CI/CD Pipeline
 on:
   push:
@@ -1763,7 +1770,8 @@ jobs:
 ```
 
 ### Étape 7 : Déclencher et Observer le Pipeline {#sec-module5-etape5}
-```bash
+
+``` bash
 # Ajouter le fichier de workflow et le pousser
 git add .github/workflows/ci-cd.yml
 git commit -m "feat: add automated CI/CD pipeline with GitHub Actions"
@@ -1774,7 +1782,6 @@ git push origin main
 
 **Observez l'exécution** :
 
-
 1.  Allez sur votre dépôt GitHub.
 2.  Cliquez sur l'onglet **"Actions"**.
 3.  Vous verrez l'exécution de votre workflow nommé **"CI/CD Pipeline"**. Cliquez dessus pour voir les détails et les logs en direct.
@@ -1784,33 +1791,21 @@ git push origin main
 ::: callout-tip
 # EXERCICE 3
 
-1.  **Ajoutez un nouveau test** dans `test_api.py` pour tester un autre endpoint, par exemple l'endpoint `/docs` (documentation Swagger) qui devrait toujours être accessible.
-    ```python
-    def test_docs_endpoint():
-        """Test que la documentation Swagger est accessible"""
-        response = client.get("/docs")
-        assert response.status_code == 200
-    ```
+1.  **Ajoutez un nouveau test** dans `test_api.py` pour tester un autre endpoint, par exemple l'endpoint `/docs` (documentation Swagger) qui devrait toujours être accessible. `python     def test_docs_endpoint():         """Test que la documentation Swagger est accessible"""         response = client.get("/docs")         assert response.status_code == 200`
 
-2.  **Faites un commit** de ce changement :
-    ```bash
-    git add tests/test_api.py
-    git commit -m "test: add docs endpoint test"
-    ```
+2.  **Faites un commit** de ce changement : `bash     git add tests/test_api.py     git commit -m "test: add docs endpoint test"`
 
-3.  **Poussez le commit** sur la branche `main` :
-    ```bash
-    git push origin main
-    ```
+3.  **Poussez le commit** sur la branche `main` : `bash     git push origin main`
 
 4.  **Observez le pipeline** s'exécuter automatiquement dans l'onglet **Actions** de votre dépôt GitHub.
+
 5.  **Une fois le workflow terminé avec succès**, vérifiez que votre application a bien été redéployée en visitant son URL (celle affichée à la fin du job `Verify deployment`).
 :::
 
 ### Dépannage des Erreurs Courantes {#sec-module5-troubleshooting}
 
 | **Symptôme / Message d'erreur** | **Cause la plus probable** | **Solution** |
-| :--- | :--- | :--- |
+|:-----------------------|:-----------------------|:-----------------------|
 | `Login failed... Not all parameters are provided in 'creds'` | Le secret `AZURE_CREDENTIALS` n'a pas le bon format (trop/moins de 4 champs). | Supprimez et recréez le secret avec l'objet JSON à **4 champs exactement** (`clientId`, `clientSecret`, `subscriptionId`, `tenantId`). |
 | `Error: ACR login failed... 401 Unauthorized` | Les secrets `ACR_USERNAME` ou `ACR_PASSWORD` sont incorrects. | Régénérez les mots de passe de votre ACR avec `az acr credential renew --name <acr-name>` et mettez à jour les secrets. |
 | Échec du job `build-and-deploy` avec `Repository not found` ou erreur sur `az containerapp update`. | Les noms dans `env:` (`ACR_NAME`, `CONTAINER_APP_NAME`) ne correspondent pas à vos ressources. | Vérifiez les noms exacts avec les commandes de l'**Étape 5** et corrigez le fichier `ci-cd.yml`. |
