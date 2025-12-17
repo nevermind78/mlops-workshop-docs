@@ -1,0 +1,2240 @@
+---
+title: "Workshop MLOps avec Azure - Guide Pratique"
+format: 
+  html:
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    number-sections: true
+    code-fold: true
+    code-overflow: wrap
+editor: visual
+---
+
+## Introduction {#sec-introduction}
+
+### Bienvenue !
+
+Ce workshop vous guidera à travers le déploiement complet d'un modèle de Machine Learning en production sur Microsoft Azure. Vous allez construire une API de prédiction de défaillance client (churn) et la déployer sur le cloud avec toutes les bonnes pratiques MLOps.
+
+### Objectifs d'Apprentissage {#sec-objectifs}
+
+À la fin de ce workshop, vous serez capable de :
+
+-   Entraîner et sauvegarder un modèle ML avec MLflow
+-   Créer une API REST avec FastAPI
+-   Conteneuriser une application avec Docker
+-   Déployer sur Azure Container Apps
+-   Mettre en place un pipeline CI/CD avec GitHub Actions
+-   Monitorer votre application en production
+-   Détecter le data drift
+
+### Le Projet : Bank Churn Prediction {#sec-projet}
+
+**Contexte :** Une banque souhaite prédire quels clients risquent de partir pour proposer des actions de rétention.
+
+**Dataset :** 10 features (âge, score crédit, solde, etc.) + 1 target (Exited : 0/1)
+
+**Modèle :** Random Forest Classifier
+
+**Livrable :** API REST déployée sur Azure, accessible publiquement
+
+### Architecture Finale {#sec-architecture}
+
+**Flux de déploiement :**
+
+`Code GitHub` → `GitHub Actions` → `Docker Build` → `Azure Container Registry` → `Azure Container Apps` → `Internet`
+
+## Préparation de l'Environnement {#sec-preparation}
+
+### Logiciels Requis {#sec-logiciels}
+
+**Obligatoire :**
+
+-   Python 3.9+ : https://www.python.org/downloads/
+-   Visual Studio Code : https://code.visualstudio.com/
+-   Git : https://git-scm.com/downloads
+-   Docker Desktop : https://www.docker.com/products/docker-desktop
+-   Azure CLI : https://docs.microsoft.com/cli/azure/install-azure-cli
+
+**Comptes à créer :**
+
+-   Compte GitHub : https://github.com/signup
+-   Azure for Students (100\$) : https://azure.microsoft.com/students
+
+### Vérification de l'Installation {#sec-verification}
+
+Ouvrez un terminal et testez :
+
+``` bash
+# Python
+python --version
+# Doit afficher Python 3.9.x ou superieur
+
+# Git
+git --version
+
+# Docker
+docker --version
+docker ps
+
+# Azure CLI
+az --version
+```
+
+### Configuration Initiale {#sec-configuration}
+
+#### Configuration Git {#sec-config-git}
+
+``` bash
+git config --global user.name "Votre Nom"
+git config --global user.email "votre.email@example.com"
+```
+
+#### Connexion à Azure {#sec-config-azure}
+
+``` bash
+# Se connecter a Azure
+az login
+
+# Verifier l'abonnement
+az account show
+
+# Si vous avez plusieurs abonnements, selectionner celui de Students
+az account set --subscription "Azure for Students"
+```
+
+## Module 1 : Entraînement du Modèle {#sec-module1}
+
+### Objectif {#sec-module1-objectif}
+
+Entraîner un modèle Random Forest pour prédire le churn et le sauvegarder avec MLflow.
+
+### Préparation du Projet {#sec-module1-preparation}
+
+``` bash
+# Creer le dossier du projet
+mkdir bank-churn-mlops
+cd bank-churn-mlops
+
+# Creer un environnement virtuel
+python -m venv venv
+
+# Activer l'environnement
+# Windows :
+venv\Scripts\activate
+# Mac/Linux :
+source venv/bin/activate
+
+# Creer la structure
+mkdir -p data model app tests
+touch requirements.txt
+```
+
+### Fichier requirements.txt {#sec-module1-requirements}
+
+Créez le fichier `requirements.txt` avec le contenu suivant :
+
+```         
+# API Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+
+# Machine Learning
+scikit-learn==1.3.2
+pandas==2.1.3
+numpy==1.26.2
+joblib==1.3.2
+
+# MLflow
+mlflow==2.8.1
+
+# Testing
+pytest==7.4.3
+pytest-cov==4.1.0
+httpx==0.25.2
+
+# Utilities
+python-multipart==0.0.6
+requests==2.31.0
+```
+
+Puis installez les dépendances :
+
+``` bash
+pip install -r requirements.txt
+```
+
+### Téléchargement du Dataset {#sec-module1-dataset}
+
+Créez un dataset synthétique :
+
+``` python
+# generate_data.py
+import pandas as pd
+import numpy as np
+
+np.random.seed(42)
+n_samples = 10000
+
+data = {
+    'CreditScore': np.random.randint(300, 850, n_samples),
+    'Age': np.random.randint(18, 80, n_samples),
+    'Tenure': np.random.randint(0, 11, n_samples),
+    'Balance': np.random.uniform(0, 200000, n_samples),
+    'NumOfProducts': np.random.randint(1, 5, n_samples),
+    'HasCrCard': np.random.choice([0, 1], n_samples),
+    'IsActiveMember': np.random.choice([0, 1], n_samples),
+    'EstimatedSalary': np.random.uniform(20000, 150000, n_samples),
+    'Geography_Germany': np.random.choice([0, 1], n_samples),
+    'Geography_Spain': np.random.choice([0, 1], n_samples),
+}
+
+# Target : plus de chance de partir si inactif, peu de produits, etc.
+churn_prob = (
+    (1 - data['IsActiveMember']) * 0.3 +
+    (data['NumOfProducts'] == 1) * 0.2 +
+    (data['Age'] > 60) * 0.15 +
+    (data['Balance'] == 0) * 0.25
+)
+data['Exited'] = (np.random.random(n_samples) < churn_prob).astype(int)
+
+df = pd.DataFrame(data)
+df.to_csv('data/bank_churn.csv', index=False)
+print(f"Dataset cree : {len(df)} lignes")
+print(f"Taux de churn : {df['Exited'].mean():.2%}")
+```
+
+### Script d'Entraînement {#sec-module1-training}
+
+Créez le fichier `train_model.py` :
+
+``` python
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import (
+    accuracy_score, 
+    precision_score, 
+    recall_score,
+    f1_score, 
+    roc_auc_score,
+    confusion_matrix
+)
+import joblib
+import mlflow
+import mlflow.sklearn
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Configuration MLflow
+mlflow.set_tracking_uri("./mlruns")
+mlflow.set_experiment("bank-churn-prediction")
+
+print("Chargement des donnees...")
+df = pd.read_csv("data/bank_churn.csv")
+
+print(f"Dataset : {len(df)} lignes, {len(df.columns)} colonnes")
+print(f"Taux de churn : {df['Exited'].mean():.2%}")
+
+# Separation features/target
+X = df.drop('Exited', axis=1)
+y = df['Exited']
+
+# Split train/test (80/20)
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42, stratify=y
+)
+
+print(f"\nTrain : {len(X_train)} lignes")
+print(f"Test : {len(X_test)} lignes")
+
+# Entrainement avec MLflow tracking
+print("\nEntrainement du modele...")
+with mlflow.start_run(run_name="random-forest-v1"):
+    
+    # Parametres du modele
+    params = {
+        'n_estimators': 100,
+        'max_depth': 10,
+        'min_samples_split': 5,
+        'random_state': 42
+    }
+    
+    # Entrainement
+    model = RandomForestClassifier(**params)
+    model.fit(X_train, y_train)
+    
+    # Predictions
+    y_pred = model.predict(X_test)
+    y_proba = model.predict_proba(X_test)[:, 1]
+    
+    # Calcul des metriques
+    accuracy = accuracy_score(y_test, y_pred)
+    precision = precision_score(y_test, y_pred)
+    recall = recall_score(y_test, y_pred)
+    f1 = f1_score(y_test, y_pred)
+    auc = roc_auc_score(y_test, y_proba)
+    
+    # Log des parametres et metriques dans MLflow
+    mlflow.log_params(params)
+    mlflow.log_metrics({
+        "accuracy": accuracy,
+        "precision": precision,
+        "recall": recall,
+        "f1_score": f1,
+        "roc_auc": auc
+    })
+    
+    # Creation et sauvegarde de la matrice de confusion
+    cm = confusion_matrix(y_test, y_pred)
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
+    plt.title('Matrice de Confusion')
+    plt.ylabel('Vraie Classe')
+    plt.xlabel('Classe Predite')
+    plt.savefig('confusion_matrix.png')
+    mlflow.log_artifact('confusion_matrix.png')
+    plt.close()
+    
+    # Feature importance
+    feature_importance = pd.DataFrame({
+        'feature': X.columns,
+        'importance': model.feature_importances_
+    }).sort_values('importance', ascending=False)
+    
+    plt.figure(figsize=(10, 6))
+    plt.barh(feature_importance['feature'], feature_importance['importance'])
+    plt.xlabel('Importance')
+    plt.title('Feature Importance')
+    plt.tight_layout()
+    plt.savefig('feature_importance.png')
+    mlflow.log_artifact('feature_importance.png')
+    plt.close()
+    
+    # Enregistrement du modele dans MLflow
+    mlflow.sklearn.log_model(
+        model,
+        "model",
+        registered_model_name="bank-churn-classifier"
+    )
+    
+    # Sauvegarde locale du modele
+    joblib.dump(model, "model/churn_model.pkl")
+    
+    # Tags
+    mlflow.set_tags({
+        "environment": "development",
+        "model_type": "RandomForest",
+        "task": "binary_classification"
+    })
+    
+    # Affichage des resultats
+    print("\n" + "="*50)
+    print("RESULTATS DE L'ENTRAINEMENT")
+    print("="*50)
+    print(f"Accuracy  : {accuracy:.4f}")
+    print(f"Precision : {precision:.4f}")
+    print(f"Recall    : {recall:.4f}")
+    print(f"F1 Score  : {f1:.4f}")
+    print(f"ROC AUC   : {auc:.4f}")
+    print("="*50)
+    
+    print(f"\nModele sauvegarde dans : model/churn_model.pkl")
+    print(f"MLflow UI : mlflow ui --port 5000")
+```
+
+### Exécution {#sec-module1-execution}
+
+``` bash
+# Lancer l'entrainement
+python train_model.py
+
+# Voir les resultats dans MLflow UI
+mlflow ui --port 5000
+# Ouvrir http://localhost:5000 dans votre navigateur
+```
+
+### Checkpoint {#sec-module1-checkpoint}
+
+:::: callout-note
+## Validation Module 1
+
+Avant de passer au module suivant, vérifiez que :
+
+::: {style="margin-left: 20px;"}
+-   [ ] Le modèle est entraîné avec une accuracy \> 0.75
+-   [ ] Le fichier `model/churn_model.pkl` existe
+-   [ ] MLflow UI affiche votre expérience
+-   [ ] Vous comprenez les métriques obtenues
+:::
+::::
+
+## Module 2 : Création de l'API avec FastAPI {#sec-module2}
+
+### Objectif {#sec-module2-objectif}
+
+Créer une API REST qui expose le modèle via des endpoints HTTP.
+
+### Structure du Code API {#sec-module2-structure}
+
+```         
+bank-churn-mlops/
+|-- app/
+|   |-- __init__.py
+|   |-- main.py
+|   |-- models.py
+|   +-- utils.py
+|-- model/
+|   +-- churn_model.pkl
+|-- tests/
+|   +-- test_api.py
+|-- requirements.txt
++-- README.md
+```
+
+### Fichier app/models.py {#sec-module2-models}
+
+Définition des schémas de données avec Pydantic :
+
+``` python
+from pydantic import BaseModel, Field
+from typing import List
+
+class CustomerFeatures(BaseModel):
+    """Schema pour les features d'un client"""
+    CreditScore: int = Field(..., ge=300, le=850, description="Score de credit")
+    Age: int = Field(..., ge=18, le=100, description="Age du client")
+    Tenure: int = Field(..., ge=0, le=10, description="Anciennete en annees")
+    Balance: float = Field(..., ge=0, description="Solde du compte")
+    NumOfProducts: int = Field(..., ge=1, le=4, description="Nombre de produits")
+    HasCrCard: int = Field(..., ge=0, le=1, description="Possession carte credit")
+    IsActiveMember: int = Field(..., ge=0, le=1, description="Membre actif")
+    EstimatedSalary: float = Field(..., ge=0, description="Salaire estime")
+    Geography_Germany: int = Field(..., ge=0, le=1, description="Client allemand")
+    Geography_Spain: int = Field(..., ge=0, le=1, description="Client espagnol")
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "CreditScore": 650,
+                "Age": 35,
+                "Tenure": 5,
+                "Balance": 50000,
+                "NumOfProducts": 2,
+                "HasCrCard": 1,
+                "IsActiveMember": 1,
+                "EstimatedSalary": 75000,
+                "Geography_Germany": 0,
+                "Geography_Spain": 1
+            }
+        }
+
+class PredictionResponse(BaseModel):
+    """Schema pour la reponse de prediction"""
+    churn_probability: float = Field(..., description="Probabilite de churn (0-1)")
+    prediction: int = Field(..., description="Prediction binaire (0=reste, 1=part)")
+    risk_level: str = Field(..., description="Niveau de risque (Low/Medium/High)")
+
+class HealthResponse(BaseModel):
+    """Schema pour le health check"""
+    status: str
+    model_loaded: bool
+```
+
+### Fichier app/main.py {#sec-module2-main}
+
+L'API principale :
+
+``` python
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+import joblib
+import numpy as np
+from typing import List
+import logging
+import os
+
+from app.models import CustomerFeatures, PredictionResponse, HealthResponse
+
+# Configuration du logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Initialisation FastAPI
+app = FastAPI(
+    title="Bank Churn Prediction API",
+    description="API de prediction de defaillance client",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc"
+)
+
+# CORS pour permettre les requetes depuis un navigateur
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Chargement du modele au demarrage
+MODEL_PATH = os.getenv("MODEL_PATH", "model/churn_model.pkl")
+model = None
+
+@app.on_event("startup")
+async def load_model():
+    """Charge le modele au demarrage de l'API"""
+    global model
+    try:
+        model = joblib.load(MODEL_PATH)
+        logger.info(f"Modele charge avec succes depuis {MODEL_PATH}")
+    except Exception as e:
+        logger.error(f"Erreur lors du chargement du modele : {e}")
+        model = None
+
+@app.get("/", tags=["General"])
+def root():
+    """Endpoint racine"""
+    return {
+        "message": "Bank Churn Prediction API",
+        "version": "1.0.0",
+        "status": "running",
+        "docs": "/docs"
+    }
+
+@app.get("/health", response_model=HealthResponse, tags=["General"])
+def health_check():
+    """Verification de l'etat de l'API"""
+    if model is None:
+        raise HTTPException(
+            status_code=503, 
+            detail="Modele non charge"
+        )
+    return {
+        "status": "healthy",
+        "model_loaded": True
+    }
+
+@app.post("/predict", response_model=PredictionResponse, tags=["Prediction"])
+def predict(features: CustomerFeatures):
+    """
+    Predit si un client va partir (churn)
+    
+    Retourne :
+    - churn_probability : probabilite de churn (0 a 1)
+    - prediction : 0 (reste) ou 1 (part)
+    - risk_level : Low, Medium ou High
+    """
+    if model is None:
+        raise HTTPException(
+            status_code=503, 
+            detail="Modele non disponible"
+        )
+    
+    try:
+        # Preparation des features
+        input_data = np.array([[
+            features.CreditScore,
+            features.Age,
+            features.Tenure,
+            features.Balance,
+            features.NumOfProducts,
+            features.HasCrCard,
+            features.IsActiveMember,
+            features.EstimatedSalary,
+            features.Geography_Germany,
+            features.Geography_Spain
+        ]])
+        
+        # Prediction
+        proba = model.predict_proba(input_data)[0, 1]
+        prediction = int(proba > 0.5)
+        
+        # Classification du risque
+        if proba < 0.3:
+            risk = "Low"
+        elif proba < 0.7:
+            risk = "Medium"
+        else:
+            risk = "High"
+        
+        logger.info(
+            f"Prediction effectuee : proba={proba:.4f}, "
+            f"prediction={prediction}, risk={risk}"
+        )
+        
+        return {
+            "churn_probability": round(float(proba), 4),
+            "prediction": prediction,
+            "risk_level": risk
+        }
+    
+    except Exception as e:
+        logger.error(f"Erreur lors de la prediction : {e}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Erreur de prediction : {str(e)}"
+        )
+
+@app.post("/predict/batch", tags=["Prediction"])
+def predict_batch(features_list: List[CustomerFeatures]):
+    """
+    Predictions en batch pour plusieurs clients
+    """
+    if model is None:
+        raise HTTPException(status_code=503, detail="Modele non disponible")
+    
+    try:
+        predictions = []
+        
+        for features in features_list:
+            input_data = np.array([[
+                features.CreditScore, features.Age, features.Tenure,
+                features.Balance, features.NumOfProducts, features.HasCrCard,
+                features.IsActiveMember, features.EstimatedSalary,
+                features.Geography_Germany, features.Geography_Spain
+            ]])
+            
+            proba = model.predict_proba(input_data)[0, 1]
+            prediction = int(proba > 0.5)
+            
+            predictions.append({
+                "churn_probability": round(float(proba), 4),
+                "prediction": prediction
+            })
+        
+        logger.info(f"Batch prediction : {len(predictions)} clients traites")
+        
+        return {"predictions": predictions, "count": len(predictions)}
+    
+    except Exception as e:
+        logger.error(f"Erreur batch prediction : {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+```
+
+### Test Local de l'API {#sec-module2-test}
+
+``` bash
+# Demarrer l'API
+uvicorn app.main:app --reload --port 8000
+
+# Dans un autre terminal, tester :
+
+# 1. Health check
+curl http://localhost:8000/health
+
+# 2. Prediction simple
+curl -X POST "http://localhost:8000/predict" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "CreditScore": 650,
+    "Age": 35,
+    "Tenure": 5,
+    "Balance": 50000,
+    "NumOfProducts": 2,
+    "HasCrCard": 1,
+    "IsActiveMember": 1,
+    "EstimatedSalary": 75000,
+    "Geography_Germany": 0,
+    "Geography_Spain": 1
+  }'
+```
+
+### Jupyter Lab
+
+``` python
+#dans jupyter lab
+import requests
+import json
+
+# URL de ton API FastAPI
+url = "http://localhost:8000/predict"
+
+# Données à envoyer
+data = {
+    "CreditScore": 650,
+    "Age": 35,
+    "Tenure": 5,
+    "Balance": 50000,
+    "NumOfProducts": 2,
+    "HasCrCard": 1,
+    "IsActiveMember": 1,
+    "EstimatedSalary": 75000,
+    "Geography_Germany": 0,
+    "Geography_Spain": 1
+}
+
+# Envoyer la requête POST
+response = requests.post(url, json=data)
+
+# Afficher la réponse
+print(f"Status Code: {response.status_code}")
+print(f"Response: {response.json()}")
+```
+
+### Documentation Interactive {#sec-module2-docs}
+
+Ouvrez votre navigateur et allez sur :
+
+-   **Swagger UI** : http://localhost:8000/docs
+-   **ReDoc** : http://localhost:8000/redoc
+
+### Checkpoint {#sec-module2-checkpoint}
+
+:::: callout-note
+## Validation Module 2
+
+Avant de passer au module suivant, vérifiez que :
+
+::: {style="margin-left: 20px;"}
+-   [ ] Le modèle est entraîné avec une accuracy \> 0.75
+-   [ ] Le fichier `model/churn_model.pkl` existe\
+-   [ ] MLflow UI affiche votre expérience
+-   [ ] Vous comprenez les métriques obtenues
+:::
+::::
+
+## Module 3 : Conteneurisation avec Docker {#sec-module3}
+
+### Objectif {#sec-module3-objectif}
+
+Empaqueter l'API dans un conteneur Docker pour la rendre portable et faciliter le déploiement sur Azure.
+
+### Création du Dockerfile {#sec-module3-dockerfile}
+
+Créez le fichier `Dockerfile` à la racine du projet :
+
+``` dockerfile
+# Utilise une image Python officielle
+FROM python:3.9-slim
+
+# Definir le repertoire de travail
+WORKDIR /app
+
+# Copier les fichiers de dependances
+COPY requirements.txt .
+
+# Installer les dependances
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copier le code de l'application
+COPY app/ ./app/
+COPY model/ ./model/
+
+# Exposer le port
+EXPOSE 8000
+
+# Commande pour demarrer l'application
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+### Création du .dockerignore {#sec-module3-dockerignore}
+
+Créez le fichier `.dockerignore` :
+
+```         
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv
+*.egg-info/
+.pytest_cache/
+.git
+.gitignore
+README.md
+.env
+mlruns/
+*.log
+.DS_Store
+.vscode/
+tests/
+```
+
+### Build de l'Image Docker {#sec-module3-build}
+
+``` bash
+# Build de l'image (cela peut prendre quelques minutes)
+docker build -t bank-churn-api:v1 .
+
+# Verifier que l'image est creee
+docker images bank-churn-api:v1
+
+# Voir la taille de l'image
+docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}" | grep bank-churn
+```
+
+### Test du Conteneur en Local {#sec-module3-test}
+
+``` bash
+# Lancer le conteneur
+docker run -d -p 8000:8000 --name churn-api bank-churn-api:v1
+
+# Verifier que le conteneur tourne
+docker ps
+
+# Voir les logs
+docker logs churn-api
+
+# Tester l'API
+curl http://localhost:8000/health
+
+# Prediction de test
+curl -X POST "http://localhost:8000/predict" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "CreditScore": 700,
+    "Age": 40,
+    "Tenure": 7,
+    "Balance": 80000,
+    "NumOfProducts": 3,
+    "HasCrCard": 1,
+    "IsActiveMember": 0,
+    "EstimatedSalary": 90000,
+    "Geography_Germany": 1,
+    "Geography_Spain": 0
+  }'
+
+# Arreter et supprimer le conteneur
+docker stop churn-api
+docker rm churn-api
+```
+
+### Commandes Docker Utiles {#sec-module3-commandes}
+
+``` bash
+# Voir tous les conteneurs (meme arretes)
+docker ps -a
+
+# Entrer dans un conteneur en cours d'execution
+docker exec -it churn-api /bin/bash
+
+# Voir l'utilisation des ressources
+docker stats churn-api
+
+# Nettoyer les images inutilisees
+docker image prune
+
+# Supprimer toutes les images
+docker rmi $(docker images -q)
+```
+
+### Questions de Compréhension {#sec-module3-questions}
+
+1.  Pourquoi utiliser un .dockerignore ?
+2.  Quelle est la différence entre CMD et RUN dans un Dockerfile ?
+3.  Pourquoi exposer le port 8000 ?
+4.  Comment vérifier que votre conteneur fonctionne correctement ?
+
+### Checkpoint {#sec-module3-checkpoint}
+
+:::: callout-note
+## Validation Module 3
+
+Avant de passer au module suivant, vérifiez que :
+
+::: {style="margin-left: 20px;"}
+-   [ ] L'image Docker est buildée avec succès
+-   [ ] Le conteneur démarre sans erreur
+-   [ ] L'API répond correctement depuis le conteneur
+-   [ ] La taille de l'image est raisonnable (\< 1GB)
+:::
+::::
+
+## Module 4 : Déploiement sur Azure {#sec-module4}
+
+### Objectif {#sec-module4-objectif}
+
+Déployer l'API sur Azure Container Apps et la rendre accessible publiquement.
+
+### Prérequis {#sec-module4-prerequis}
+
+1.  **Docker Desktop** en cours d'exécution (mode WSL2 recommandé)
+2.  **Configurer Docker** ![](image_docker.png)
+3.  **Azure CLI** installé et connecté (`az login`)
+4.  **Image locale** `churn-api:v1` déjà construite
+5.  **installer l'extension containerapp**
+
+``` bash
+ az extension add --name containerapp
+```
+
+### Etape 0 : Vérifier les régions disponibles {#sec-module4-etape0}
+
+``` bash
+#!/bin/bash
+# Méthodesimple 
+
+# Liste toutes les régions recommandées
+echo "Régions disponibles chez toi :"
+az account list-locations \
+  --query "[?metadata.regionCategory=='Recommended'].name" \
+  -o tsv | head -5
+
+# Prendre la première
+REGION=$(az account list-locations \
+  --query "[?metadata.regionCategory=='Recommended'].name" \
+  -o tsv | head -1)
+
+echo "✅ proposition de la région : $REGION"
+```
+
+On Peut aussi éxécuter
+
+``` bash
+# Juste cette ligne dans ton terminal :
+LOCATION=$(az account list-locations --query "[0].name" -o tsv) && echo "Use: $REGION"
+```
+
+### Script Complet : {#sec-module4-etape1}
+
+``` bash
+#!/usr/bin/env bash
+set -euo pipefail
+#################################
+# VARIABLES DÉFINITIVES
+#################################
+RESOURCE_GROUP="rg-mlops"  
+LOCATION="westeurope"   # Forcé West Europe (garanti)
+FALLBACK_LOCATION="northeurope"     # Fallback garanti
+ACR_NAME="mlops$(whoami | tr '[:upper:]' '[:lower:]' | tr -cd '[:alnum:]')"  # 100% minuscules
+CONTAINER_APP_NAME="bank-churn" 
+CONTAINERAPPS_ENV="env-mlops-workshop"
+IMAGE_NAME="churn-api"
+IMAGE_TAG="v1"
+TARGET_PORT=8000
+
+#################################
+# 0) Contexte Azure + Vérification Extensions
+#################################
+echo "Vérification du contexte Azure..."
+az account show --query "{name:name, cloudName:cloudName}" -o json >/dev/null
+
+echo "Vérification/installation des extensions Azure CLI..."
+
+# Vérifier et installer containerapp si nécessaire
+if ! az extension show --name containerapp >/dev/null 2>&1; then
+    echo "📦 Installation de l'extension containerapp..."
+    az extension add --name containerapp --upgrade -y --only-show-errors
+    echo "✅ Extension containerapp installée"
+else
+    echo "✅ Extension containerapp déjà installée"
+    # Mise à jour silencieuse
+    az extension update --name containerapp -y --only-show-errors 2>/dev/null || true
+fi
+
+# Liste des extensions installées pour vérification
+echo "Extensions installées :"
+az extension list --query "[].{Name:name, Version:version}" -o table
+
+#################################
+# 1) Providers nécessaires
+#################################
+echo "Register providers..."
+az provider register --namespace Microsoft.ContainerRegistry --wait
+az provider register --namespace Microsoft.App --wait
+az provider register --namespace Microsoft.Web --wait
+az provider register --namespace Microsoft.OperationalInsights --wait
+
+#################################
+# 2) Resource Group
+#################################
+echo "Création/validation du groupe de ressources..."
+az group create -n "$RESOURCE_GROUP" -l "$LOCATION" >/dev/null || true
+echo "✅ RG OK: $RESOURCE_GROUP"
+
+#################################
+# 3) Création ACR (avec vérification)
+#################################
+echo "Création du Container Registry (ACR) en $LOCATION..."
+
+# Vérification préalable
+if [[ ! "$ACR_NAME" =~ ^[a-z0-9]{5,50}$ ]]; then
+    echo "❌ ERREUR: Nom ACR invalide: $ACR_NAME"
+    echo "   Doit contenir 5-50 caractères alphanumériques en minuscules"
+    exit 1
+fi
+
+echo "Nom ACR validé: $ACR_NAME (${#ACR_NAME} caractères)"
+
+set +e
+az acr create \
+  --resource-group "$RESOURCE_GROUP" \
+  --name "$ACR_NAME" \
+  --sku Basic \
+  --admin-enabled true \
+  --location "$LOCATION" >/dev/null 2>&1
+ACR_RC=$?
+set -e
+
+if [ $ACR_RC -ne 0 ]; then
+  echo "⚠️ ACR bloqué en $LOCATION. Fallback => $FALLBACK_LOCATION"
+  LOCATION="$FALLBACK_LOCATION"
+  az acr create \
+    --resource-group "$RESOURCE_GROUP" \
+    --name "$ACR_NAME" \
+    --sku Basic \
+    --admin-enabled true \
+    --location "$LOCATION" >/dev/null
+fi
+
+# Attendre la création complète
+sleep 5
+echo "✅ ACR créé : $ACR_NAME (region=$LOCATION)"
+
+#################################
+# 4) Login ACR + Push image
+#################################
+echo "Connexion au registry..."
+az acr login --name "$ACR_NAME" >/dev/null
+
+ACR_LOGIN_SERVER=$(az acr show --name "$ACR_NAME" --query loginServer -o tsv | tr -d '\r')
+echo "ACR_LOGIN_SERVER=$ACR_LOGIN_SERVER"
+
+# Récupération des credentials AU BON ENDROIT
+ACR_USER=$(az acr credential show -n "$ACR_NAME" --query username -o tsv | tr -d '\r')
+ACR_PASS=$(az acr credential show -n "$ACR_NAME" --query "passwords[0].value" -o tsv | tr -d '\r')
+IMAGE="$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG"
+
+echo "Build + Tag + Push..."
+docker build -t "$IMAGE_NAME:$IMAGE_TAG" .
+docker tag "$IMAGE_NAME:$IMAGE_TAG" "$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG"
+docker tag "$IMAGE_NAME:$IMAGE_TAG" "$ACR_LOGIN_SERVER/$IMAGE_NAME:latest"
+docker push "$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG"
+docker push "$ACR_LOGIN_SERVER/$IMAGE_NAME:latest"
+echo "✅ Image pushée dans ACR"
+
+#################################
+# 5) Log Analytics (corrigé)
+#################################
+LAW_NAME="law-mlops-$(whoami)-$RANDOM"
+echo "Création Log Analytics: $LAW_NAME"
+az monitor log-analytics workspace create -g "$RESOURCE_GROUP" -n "$LAW_NAME" -l "$LOCATION" >/dev/null
+sleep 10  # Attente nécessaire
+
+# Commande corrigée avec paramètres explicites
+LAW_ID=$(az monitor log-analytics workspace show \
+    --resource-group "$RESOURCE_GROUP" \
+    --workspace-name "$LAW_NAME" \
+    --query customerId -o tsv | tr -d '\r')
+
+LAW_KEY=$(az monitor log-analytics workspace get-shared-keys \
+    --resource-group "$RESOURCE_GROUP" \
+    --workspace-name "$LAW_NAME" \
+    --query primarySharedKey -o tsv | tr -d '\r')
+echo "✅ Log Analytics OK"
+
+#################################
+# 6) Container Apps Environment
+#################################
+echo "Création/validation Container Apps Environment: $CONTAINERAPPS_ENV"
+if ! az containerapp env show -n "$CONTAINERAPPS_ENV" -g "$RESOURCE_GROUP" >/dev/null 2>&1; then
+  az containerapp env create \
+    -n "$CONTAINERAPPS_ENV" \
+    -g "$RESOURCE_GROUP" \
+    -l "$LOCATION" \
+    --logs-workspace-id "$LAW_ID" \
+    --logs-workspace-key "$LAW_KEY" >/dev/null
+fi
+echo "✅ Environment OK"
+
+#################################
+# 7) Déploiement Container App
+#################################
+echo "Déploiement Container App: $CONTAINER_APP_NAME"
+if az containerapp show -n "$CONTAINER_APP_NAME" -g "$RESOURCE_GROUP" >/dev/null 2>&1; then
+  az containerapp update \
+    -n "$CONTAINER_APP_NAME" \
+    -g "$RESOURCE_GROUP" \
+    --image "$IMAGE" \
+    --registry-server "$ACR_LOGIN_SERVER" \
+    --registry-username "$ACR_USER" \
+    --registry-password "$ACR_PASS" >/dev/null
+else
+  az containerapp create \
+    -n "$CONTAINER_APP_NAME" \
+    -g "$RESOURCE_GROUP" \
+    --environment "$CONTAINERAPPS_ENV" \
+    --image "$IMAGE" \
+    --ingress external \
+    --target-port "$TARGET_PORT" \
+    --registry-server "$ACR_LOGIN_SERVER" \
+    --registry-username "$ACR_USER" \
+    --registry-password "$ACR_PASS" \
+    --min-replicas 1 \
+    --max-replicas 1 >/dev/null
+fi
+echo "✅ Container App OK"
+
+#################################
+# 8) URL API
+#################################
+APP_URL=$(az containerapp show -n "$CONTAINER_APP_NAME" -g "$RESOURCE_GROUP" --query properties.configuration.ingress.fqdn -o tsv | tr -d '\r')
+
+echo ""
+echo "=========================================="
+echo "✅ DÉPLOIEMENT RÉUSSI"
+echo "=========================================="
+echo "ACR      : $ACR_NAME"
+echo "Region   : $LOCATION"
+echo "Resource Group: $RESOURCE_GROUP"
+echo ""
+echo "URLs de l'application :"
+echo "  API      : https://$APP_URL"
+echo "  Health   : https://$APP_URL/health"
+echo "  Docs     : https://$APP_URL/docs"
+echo ""
+echo "Pour supprimer toutes les ressources :"
+echo "  az group delete --name $RESOURCE_GROUP --yes --no-wait"
+echo "=========================================="
+```
+
+### Test de l'API en Production {#sec-module4-etape2}
+
+``` bash
+RESOURCE_GROUP="rg-mlops"  # votre Ressource group
+
+CONTAINER_APP_NAME="bank-churn" # le nom de votre container app
+
+APP_URL=$(az containerapp show \
+  --name $CONTAINER_APP_NAME \
+  --resource-group $RESOURCE_GROUP \
+  --query properties.configuration.ingress.fqdn -o tsv | tr -d '\r\n' | xargs)
+
+# 2. Vérifier l'URL proprement
+echo "URL nettoyée: '$APP_URL'"
+echo "Longueur: ${#APP_URL}"
+
+# 3. Test avec l'URL complète
+FULL_URL="https://${APP_URL}/predict"
+echo "URL complète: $FULL_URL"
+
+# 4. Test de prédiction
+curl -X POST "$FULL_URL" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "CreditScore": 650,
+    "Age": 35,
+    "Tenure": 5,
+    "Balance": 50000,
+    "NumOfProducts": 2,
+    "HasCrCard": 1,
+    "IsActiveMember": 1,
+    "EstimatedSalary": 75000,
+    "Geography_Germany": 0,
+    "Geography_Spain": 1
+  }'
+
+echo ""
+```
+
+### 🔧 Résolution des problèmes {#sec-module4-troubleshooting}
+
+| Problème | Solution |
+|------------------------------------|------------------------------------|
+| **Erreur DNS / `cloudName: null`** | Exécuter `az logout && az login` |
+| **Caractère `\r` dans les variables** | Toujours utiliser `tr -d '\r'` après `az acr show` |
+| **Erreur "ContainerAppInvalidSecretName"** | Utiliser l'approche YAML avec secret nommé `acrpassword` |
+| **Docker non accessible** | Démarrer Docker Desktop et ouvrir un nouveau terminal |
+| **Erreurs de permissions** | Vérifier `az account show` et `az login` |
+| **L'application est "Failed"** | Vérifier les logs : `az containerapp logs show --name $CONTAINER_APP_NAME --resource-group $RESOURCE_GROUP --tail 50` |
+| **Image fonctionne localement mais pas sur Azure** | Vérifier les credentials ACR et l'identité managée |
+
+### 📋 Commandes de diagnostic utiles {#sec-module4-diagnostic}
+
+``` bash
+# Voir les logs en temps réel
+az containerapp logs show \
+  --name $CONTAINER_APP_NAME \
+  --resource-group $RESOURCE_GROUP \
+  --tail 100 \
+  --follow
+
+# Vérifier l'état détaillé
+az containerapp revision list \
+  --name $CONTAINER_APP_NAME \
+  --resource-group $RESOURCE_GROUP \
+  --output table
+
+# Récupération automatique et test Docker
+RESOURCE_GROUP="rg-mlops1"
+ACR_NAME=$(az acr list --resource-group $RESOURCE_GROUP --query "[0].name" -o tsv | tr -d '\r\n' | xargs)
+ACR_LOGIN_SERVER=$(az acr show --name $ACR_NAME --query loginServer --output tsv | tr -d '\r\n' | xargs)
+
+echo "ACR trouvé: $ACR_LOGIN_SERVER"
+echo "Lancement de l'image..."
+
+docker run -p 8000:8000 ${ACR_LOGIN_SERVER}/bank-churn-api:v1
+
+
+# tester l'api 
+curl -X POST "http://localhost:8000/predict" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "CreditScore": 650,
+    "Age": 35,
+    "Tenure": 5,
+    "Balance": 50000,
+    "NumOfProducts": 2,
+    "HasCrCard": 1,
+    "IsActiveMember": 1,
+    "EstimatedSalary": 75000,
+    "Geography_Germany": 0,
+    "Geography_Spain": 1
+  }'
+```
+
+### 📊 Alternative : Déploiement via le Portail Azure {#sec-module4-portail}
+
+#### **Objectif**
+
+Reproduire EXACTEMENT le script Bash fourni en utilisant UNIQUEMENT l'interface graphique Azure Portal.
+
+#### **Prérequis**
+
+1.  Compte Azure avec abonnement actif
+2.  Accès à [portal.azure.com](https://portal.azure.com)
+3.  Dockerfile et code de l'application `bank-churn-api` prêts localement
+
+------------------------------------------------------------------------
+
+#### **ÉTAPE 0: Connexion Azure**
+
+1.  **Connectez-vous** à [portal.azure.com](https://portal.azure.com)
+2.  **Vérifiez votre abonnement** :
+    -   En haut à droite → Cliquez sur votre profil
+    -   "Changer de répertoire" si besoin
+    -   L'abonnement actif s'affiche dans le panneau latéral gauche
+
+------------------------------------------------------------------------
+
+#### **ÉTAPE 1: Vérifier/Créer les Fournisseurs (Providers)**
+
+⚠️ **Cette étape n'est pas faisable dans le portail** Les providers s'enregistrent automatiquement lors de la première utilisation du service. **Alternative** : Utilisez Azure Cloud Shell (Bash) pour cette partie uniquement :
+
+``` bash
+# Dans Azure Cloud Shell (icône >_ en haut du portail)
+az provider register --namespace Microsoft.ContainerRegistry --wait
+az provider register --namespace Microsoft.App --wait
+az provider register --namespace Microsoft.Web --wait
+az provider register --namespace Microsoft.OperationalInsights --wait
+```
+
+------------------------------------------------------------------------
+
+#### **ÉTAPE 2: Groupe de Ressources**
+
+1.  **Recherchez** "Groupes de ressources" dans la barre de recherche
+2.  **Cliquez** sur "+ Créer"
+3.  **Remplissez** :
+    -   Abonnement : Votre abonnement
+    -   Groupe de ressources : `rg-MLopsyy`
+    -   Région : `France Central`
+4.  **Cliquez** sur "Vérifier + créer" puis "Créer"
+5.  **Attendez** le déploiement (≈30 secondes)
+
+------------------------------------------------------------------------
+
+#### **ÉTAPE 3: Container Registry (ACR)**
+
+##### **3.1 Création ACR**
+
+1.  **Recherchez** "Registres de conteneurs"
+2.  **Cliquez** sur "+ Créer"
+3.  **Onglet "Général"** :
+    -   Groupe de ressources : `rg-MLopsyy`
+    -   Nom du registre : `acrmlops[VOTRE_USERNAME][TIMESTAMP]` *Ex: acrmlopsjean1648826400* (le nom doit être unique dans Azure et contenir de 5 à 50 caractères alphanumériques ).
+    -   Emplacement : `France Central`
+    -   SKU : `De base`
+4.  **Onglet "Authentification"** :
+    -   ✅ Utilisateur administrateur → ACTIVÉ (utile pour les tests, mais privilégiez une identité Microsoft Entra pour les scénarios de production )
+5.  **Cliquez** sur "Vérifier + créer" puis "Créer"
+
+##### **3.2 Fallback si France Central bloqué**
+
+Si erreur de stratégie : 1. **Recommencez** l'étape 3.1 2. **Changez** l'emplacement : `West Europe` 3. **Notez** la nouvelle région pour les étapes suivantes
+
+------------------------------------------------------------------------
+
+#### **ÉTAPE 4: Build et Push de l'Image**
+
+##### **4.1 Préparer localement**
+
+``` bash
+# Sur VOTRE machine locale (pas dans le portail)
+cd /chemin/vers/votre/projet
+
+# Build l'image
+docker build -t bank-churn-api:v1 .
+
+# Tag avec ACR
+docker tag bank-churn-api:v1 acrmlopsjean1648826400.azurecr.io/bank-churn-api:v1
+docker tag bank-churn-api:v1 acrmlopsjean1648826400.azurecr.io/bank-churn-api:latest
+```
+
+##### **4.2 Push vers ACR**
+
+###### **Option A: Via Azure CLI local**
+
+``` bash
+# Login ACR avec votre identité individuelle 
+az acr login --name acrmlopsjean1648826400
+
+# Push images
+docker push acrmlopsjean1648826400.azurecr.io/bank-churn-api:v1
+docker push acrmlopsjean1648826400.azurecr.io/bank-churn-api:latest
+```
+
+###### **Option B: Via Portail Azure (ACR Tasks)**
+
+1.  **Allez** dans votre ACR créé
+2.  **Menu gauche** → "Services" → "Tâches"
+3.  **Cliquez** sur "+ Tâche"
+4.  **Configurez** :
+    -   Type de tâche : Tâche rapide
+    -   Platform : Linux
+    -   Emplacement : Même que l'ACR
+    -   Source du code : "Context local"
+    -   Uploader votre code ZIP ou Dockerfile
+5.  **Exécutez** la tâche
+
+------------------------------------------------------------------------
+
+#### **ÉTAPE 5: Log Analytics Workspace**
+
+1.  **Recherchez** "Espaces de travail Log Analytics"
+2.  **Cliquez** sur "+ Créer"
+3.  **Remplissez** :
+    -   Groupe de ressources : `rg-MLopsyy`
+    -   Nom : `law-mlops-[VOTRE_USERNAME]-[RANDOM]` *Ex: law-mlops-jean-12345*
+    -   Région : Même que l'ACR (France Central ou West Europe)
+4.  **Cliquez** sur "Vérifier + créer" puis "Créer"
+5.  **Notez** :
+    -   **ID de l'espace de travail** (customerId)
+    -   **Clé primaire** (primarySharedKey)
+
+------------------------------------------------------------------------
+
+#### **ÉTAPE 6: Container Apps Environment**
+
+1.  **Recherchez** "Environnements Container Apps"
+2.  **Cliquez** sur "+ Créer"
+3.  **Onglet "Général"** :
+    -   Nom de l'environnement : `env-mlops-workshop`
+    -   Groupe de ressources : `rg-MLopsyy`
+    -   Zone : Même région que l'ACR
+    -   Type d'environnement : `Consumption only` (pour ce workshop)
+4.  **Onglet "Surveillance"** :
+    -   ✅ Activer la surveillance Log Analytics
+    -   Espace de travail Log Analytics : Sélectionnez celui créé à l'étape 5
+5.  **Cliquez** sur "Vérifier + créer" puis "Créer"
+
+------------------------------------------------------------------------
+
+#### **ÉTAPE 7: Container App (Application)**
+
+##### **7.1 Création**
+
+1.  **Recherchez** "Container Apps"
+2.  **Cliquez** sur "+ Créer" \> "Container App"
+3.  **Onglet "Général"** :
+    -   Abonnement : Votre abonnement
+    -   Groupe de ressources : `rg-MLopsyy`
+    -   Nom de l'application conteneur : `bank-churn-api` (entre 2 et 32 caractères, lettres minuscules, chiffres et tirets )
+    -   Région : Sélectionnez une région près de vous
+    -   Environnement Container Apps : Sélectionnez `env-mlops-workshop` (créé précédemment)
+
+##### **7.2 Onglet "Application"**
+
+1.  **Section "Image"** :
+    -   Source de l'image : "Azure Container Registry"
+    -   Registre : Sélectionnez votre ACR
+    -   Image : `bank-churn-api`
+    -   Étiquette : `v1`
+    -   Type d'authentification du registre : "Informations d'identification de l'administrateur" (utilisez les clés d'accès de l'ACR pour ce workshop )
+    -   Nom d'utilisateur/Password : Récupérez-les dans ACR → "Clés d'accès"
+
+##### **7.3 Onglet "Ingress"**
+
+1.  **Trafic entrant** : ✅ Activé
+2.  **Visibilité du trafic entrant** : `Accepting traffic from anywhere` (pour un accès externe )
+3.  **Type d'entrée** : `HTTP`
+4.  **Port cible** : `8000` (doit correspondre au port écouté par votre conteneur )
+5.  **Connexions non sécurisées** : Décochez (laissez `false` par défaut pour forcer HTTPS )
+
+##### **7.4 Onglet "Mise à l'échelle"**
+
+Pour ce workshop et pour optimiser les coûts : 1. **Mode de mise à l'échelle** : "Aucune mise à l'échelle automatique" 2. **Nombre minimal de réplicas** : `1` 3. **Nombre maximal de réplicas** : `1`
+
+::: callout-note
+#### Bonne pratique en production
+
+Pour une meilleure fiabilité en production, il est recommandé de configurer au moins 3 réplicas et d'activer la mise à l'échelle automatique basée sur les métriques HTTP ou CPU pour gérer les pics de charge .
+:::
+
+##### **7.5 Finalisation**
+
+-   **Cliquez** sur "Vérifier + créer" puis "Créer"
+-   **Attendez** le déploiement (≈2-3 minutes)
+
+------------------------------------------------------------------------
+
+#### **ÉTAPE 8: Récupérer l'URL**
+
+1.  **Allez** sur votre Container App `bank-churn-api`
+2.  **Menu gauche** → "Vue d'ensemble"
+3.  **Cherchez** "URL de l'application" (le FQDN généré automatiquement )
+4.  **Copiez** l'URL (format : `https://bank-churn-api.xxxxxxxx.region.azurecontainerapps.io`)
+
+------------------------------------------------------------------------
+
+#### **ÉTAPE 9: Tests**
+
+1.  **Ouvrez** un navigateur
+2.  **Testez** :
+    -   **Health** : `https://[VOTRE-URL]/health`
+    -   **Documentation** : `https://[VOTRE-URL]/docs`
+    -   **Swagger UI** : `https://[VOTRE-URL]/redoc`
+
+------------------------------------------------------------------------
+
+#### **Vérification Finale**
+
+Comparez avec le script Bash :
+
+| Élément | Script Bash | Interface Graphique |
+|------------------|---------------------|---------------------------------|
+| Resource Group | `rg-MLopsyy` (France Central) | ✅ Identique |
+| ACR | Nom unique avec timestamp | ✅ Identique (5-50 caractères alphanumériques ) |
+| Fallback location | West Europe si blocage | ✅ Géré manuellement |
+| Log Analytics | Créé avec nom aléatoire | ✅ Identique |
+| Environment | `env-mlops-workshop` | ✅ Identique |
+| Container App | `bank-churn-api` port 8000 | ✅ Identique (2-32 caractères ) |
+| Image | `bank-churn-api:v1` | ✅ Identique |
+| Ingress | Externe, HTTP, port 8000 | ✅ Identique |
+| Réplicas | min=1, max=1 | ✅ Identique |
+
+------------------------------------------------------------------------
+
+#### **Points d'Attention**
+
+1.  **Timestamp dans ACR** : Dans le portail, générez-le manuellement (ex: `date +%s` dans Cloud Shell)
+2.  **Authentification ACR** : Pour les scénarios de production, envisagez d'utiliser une **identité managée** au lieu des identifiants administrateur pour une sécurité et une gestion améliorées .
+3.  **Variables d'environnement** : Si votre app en a besoin, ajoutez-les dans l'onglet "Paramètres" du Container App.
+4.  **Logs** : Les logs sont automatiquement envoyés à Log Analytics configuré dans l'environnement.
+5.  **Sécurité réseau** : Pour restreindre l'accès, vous pouvez configurer ultérieurement des **restrictions d'adresse IP** sur l'ingress de votre application conteneur .
+
+------------------------------------------------------------------------
+
+#### **Résumé des URLs**
+
+-   **Portail Azure** : https://portal.azure.com
+-   **Votre API** : `https://bank-churn-api.[...].azurecontainerapps.io`
+-   **Health check** : `/health`
+-   **Documentation** : `/docs` (Swagger)
+-   **ACR** : `acrmlopsjean1648826400.azurecr.io`
+
+------------------------------------------------------------------------
+
+**Durée totale** : ≈15-20 minutes via l'interface graphique **Coût estimé** : \~5-10€/mois (ACR Basic + Container App en fonctionnement)
+
+**Remarque :** Il est important de conserver la section existante "Surveillance des Coûts {#sec-module4-couts}" qui suit immédiatement cette partie dans votre fichier.
+
+### Exercice Pratique {#sec-module4-exercice}
+
+::: callout-tip
+## EXERCICE 2
+
+Partagez votre URL d'API avec un camarade et testez son API :
+
+1.  Faites 10 prédictions sur son API
+2.  Comparez les résultats avec votre modèle
+3.  Observez les logs dans Azure Portal :
+    -   Allez dans votre Container App
+    -   Menu **"Log stream"** ou **"Monitoring" → "Logs"**
+    -   Observez les requêtes en temps réel
+:::
+
+### 🎯 Points clés des corrections apportées {#sec-module4-resume}
+
+1.  **Nettoyage du `\r`** : Ajout de `tr -d '\r'` à la récupération du login server
+2.  **Approche YAML** : Contournement du bug de génération de nom de secret
+3.  **Secret nommé** : Utilisation d'un nom valide `acrpassword` au lieu du nom auto-généré
+4.  **Variables d'environnement** : Ajout de `PYTHONUNBUFFERED=1` pour les logs
+5.  **Tests robustes** : Attente de 30 secondes avant les vérifications
+6.  **Commandes de diagnostic** : Ajout de commandes pour troubleshooting
+7.  **Alternative GUI** : Instructions pour le déploiement via le portail Azure
+
+Pour exécuter le module, sauvegardez-le dans un fichier `module4-deploiement.sh` et exécutez :
+
+``` bash
+chmod +x module4-deploiement.sh
+./module4-deploiement.sh
+```
+
+### Checkpoint {#sec-module4-checkpoint}
+
+:::: callout-note
+## Validation Module 4
+
+Avant de passer au module suivant, vérifiez que :
+
+::: {style="margin-left: 20px;"}
+-   [ ] L'application est accessible via HTTPS
+-   [ ] Le health check fonctionne
+-   [ ] Les prédictions fonctionnent
+-   [ ] Vous avez noté l'URL publique de votre API
+:::
+::::
+
+## Module 5 : CI/CD avec GitHub Actions {#sec-module5}
+
+### Objectif {#sec-module5-objectif}
+Automatiser le déploiement : chaque commit sur la branche `main` déclenche un build et un redéploiement via un pipeline GitHub Actions.
+
+### Étape 1 : Initialisation du Repository Git {#sec-module5-etape1}
+```bash
+# Initialiser git avec 'main' comme branche par défaut
+git init -b main
+
+# Créer un .gitignore robuste
+cat > .gitignore << 'EOF'
+__pycache__/
+*.pyc
+venv/
+.env
+mlruns/
+*.log
+.DS_Store
+.vscode/
+confusion_matrix.png
+feature_importance.png
+# Secrets (NE JAMAIS commiter)
+*.secret
+*.key
+*.pem
+credentials*.json
+resultat.txt
+azure-credentials.json
+EOF
+
+# Premier commit
+git add .
+git commit -m "Initial commit: Bank Churn API"
+```
+
+### Étape 2 : Créer un Repository GitHub {#sec-module5-etape2}
+
+
+1.  Allez sur `https://github.com/new`
+2.  **Nom** : `bank-churn-mlops`
+3.  **Visibility** : Public ou Private
+4.  **Ne pas** initialiser avec README
+5.  Cliquez sur "Create repository"
+
+```bash
+# Lier votre repo local à GitHub
+git remote add origin https://github.com/votre-username/bank-churn-mlops.git
+git branch -M main
+git push -u origin main
+```
+
+### Étape 3 : Configuration des Secrets GitHub {#sec-module5-etape3}
+Pour l'authentification avec Azure, l'action `azure/login@v1` attend un secret (`AZURE_CREDENTIALS`) contenant un **objet JSON avec exactement 4 clés**.
+
+#### Créer et formater les identifiants du Service Principal Azure
+
+**Option A (Recommandée) : Avec l'outil `jq`**
+
+Si `jq` n'est pas installé sur votre terminal linux , installer le avec 
+```bash
+sudo apt  install jq
+```
+Puis éxécuter ceci :
+```bash
+RESOURCE_GROUP="rg-mlops-bank-churn"
+SUBSCRIPTION_ID=$(az account show --query id -o tsv | tr -d '\r')
+
+# 1. Créer le Service Principal et capturer la sortie
+SP_JSON=$(az ad sp create-for-rbac \
+  --name "github-actions-$(date +%s)" \
+  --role contributor \
+  --scopes "/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${RESOURCE_GROUP}" \
+  --output json)
+
+# 2. Extraire et formater uniquement les 4 champs requis pour GitHub Actions
+echo $SP_JSON | jq -c '{clientId: .appId, clientSecret: .password, subscriptionId: "'"$SUBSCRIPTION_ID"'", tenantId: .tenant}'
+```
+**Copiez l'objet JSON compact qui s'affiche.** Il ressemblera à ceci :
+```json
+{"clientId":"xxxxxxxx-xxxx-...","clientSecret":"votre_mot_de_passe","subscriptionId":"e14fdc0f-d8cd-...","tenantId":"xxxxxxxx-xxxx-..."}
+```
+
+**Option B (Manuelle) : Sans `jq`**
+Exécutez la commande standard et notez les valeurs pour `appId`, `password` et `tenant`. Composez ensuite **manuellement** l'objet JSON suivant en utilisant :
+- `appId` comme valeur pour `clientId`
+- `password` comme valeur pour `clientSecret`
+- Votre `subscriptionId` (`e14fdc0f-d8cd-4608-9a2e-d02e7b15366b`)
+- `tenant` comme valeur pour `tenantId`
+```json
+{
+  "clientId": "xxxxxxxx-xxxx-...",
+  "clientSecret": "votre_mot_de_passe",
+  "subscriptionId": "e14fdc0f-d8cd-4608-9a2e-d02e7b15366b",
+  "tenantId": "xxxxxxxx-xxxx-..."
+}
+```
+
+#### Ajouter les Secrets dans GitHub
+
+
+1.  Allez dans votre repository GitHub : **Settings > Secrets and variables > Actions**
+2.  Cliquez sur **"New repository secret"**
+3.  Ajoutez ces trois secrets :
+
+| **Nom du Secret** | **Valeur à coller** | **Comment l'obtenir** |
+| :--- | :--- | :--- |
+| `AZURE_CREDENTIALS` | **L'objet JSON complet** (4 champs) généré à l'étape précédente. | Résultat de la commande avec `jq` ou création manuelle. |
+| `ACR_USERNAME` | Le nom d'utilisateur de votre ACR. | `az acr credential show --name <VOTRE_ACR> --query username -o tsv` |
+| `ACR_PASSWORD` | Le mot de passe de votre ACR. | `az acr credential show --name <VOTRE_ACR> --query "passwords[0].value" -o tsv` |
+
+**Important** : Pour `AZURE_CREDENTIALS`, assurez-vous de copier **tout l'objet JSON en une seule ligne** dans le champ de valeur du secret, sans espaces avant ou après.
+
+### Étape 4 : Préparation des Tests pour le Pipeline {#sec-module5-tests}
+Avant de configurer le workflow, assurez-vous d'avoir des tests valides. Créez ou mettez à jour `tests/test_api.py` :
+
+```python
+# tests/test_api.py
+import sys
+import os
+from unittest.mock import patch
+import numpy as np
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from fastapi.testclient import TestClient
+from app.main import app
+
+client = TestClient(app)
+
+TEST_CUSTOMER = {
+    "CreditScore": 650, "Age": 35, "Tenure": 5, "Balance": 50000.0,
+    "NumOfProducts": 2, "HasCrCard": 1, "IsActiveMember": 1,
+    "EstimatedSalary": 75000.0, "Geography_Germany": 0, "Geography_Spain": 1
+}
+
+def test_read_root():
+    """Test l'endpoint racine /"""
+    response = client.get("/")
+    assert response.status_code == 200
+    assert response.json()["message"] == "Bank Churn Prediction API"
+
+def test_predict_with_mock():
+    """Test /predict avec un mock du modèle pour éviter l'erreur 503"""
+    with patch('app.main.model') as mock_model:
+        # Simulation d'une prédiction réussie
+        mock_model.predict_proba.return_value = np.array([[0.2, 0.8]])
+        mock_model.predict.return_value = np.array([1])
+        
+        response = client.post("/predict", json=TEST_CUSTOMER)
+        # Le test passe si l'API traite la requête
+        assert response.status_code in [200, 422, 503]
+```
+
+**Exécution des tests en local (avant CI/CD)** :
+```bash
+python -m pytest tests/ -v
+```
+
+### Étape 5 : Vérification des Noms de Ressources (CRITIQUE) {#sec-module5-verif}
+Le pipeline échouera si les noms de vos ressources Azure ne correspondent pas. **Avant de créer le workflow**, vérifiez ces noms exacts :
+
+```bash
+# 1. Vérifier le nom exact de votre Azure Container Registry (ACR)
+az acr list --resource-group rg-mlops-bank-churn --query "[].name" -o tsv
+# Doit retourner quelque chose comme : mlopsnevermind
+
+# 2. Vérifier le nom exact de votre Azure Container App
+az containerapp list --resource-group rg-mlops-bank-churn --query "[].name" -o tsv
+# Doit retourner : bank-churn
+
+# 3. Confirmer votre nom de groupe de ressources
+echo "rg-mlops-bank-churn"
+```
+Notez ces noms, vous en aurez besoin pour l'étape suivante.
+
+### Étape 6 : Création du Workflow GitHub Actions {#sec-module5-etape4}
+Créez le fichier `.github/workflows/ci-cd.yml` avec le contenu ci-dessous. **Remplacez les valeurs d'environnement (`env`)** par celles qui correspondent à **vos** ressources Azure, identifiées à l'étape 5.
+
+```yaml
+name: CI/CD Pipeline
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  # ⚠️ REMPLACEZ CES VALEURS PAR LES VÔTRES ⚠️
+  AZURE_RESOURCE_GROUP: rg-mlops-bank-churn
+  ACR_NAME: mlopsnevermind          # Le nom de VOTRE ACR (étape 5.1)
+  CONTAINER_APP_NAME: bank-churn    # Le nom de VOTRE Container App (étape 5.2)
+  IMAGE_NAME: bank-churn-api
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run tests with coverage
+        run: |
+          pytest tests/ -v --cov=app --cov-report=term
+
+  build-and-deploy:
+    needs: test  # Ne s'exécute QUE si les tests réussissent
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'  # Ne déploie que depuis 'main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}  # Utilise le secret formaté
+      - name: Login to Azure Container Registry (ACR)
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ env.ACR_NAME }}.azurecr.io
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+      - name: Build and push Docker image
+        run: |
+          # Construit l'image et la tagge avec le hash unique du commit
+          docker build -t ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} .
+          # Crée aussi un tag 'latest' pour référence
+          docker tag ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }} ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
+          # Pousse les deux images vers l'ACR
+          docker push ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          docker push ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
+          echo "✅ Images poussées dans ACR."
+      - name: Deploy to Azure Container Apps
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            az containerapp update \
+              --name ${{ env.CONTAINER_APP_NAME }} \
+              --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+              --image ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
+            echo "✅ Commande de déploiement envoyée à Azure."
+      - name: Verify deployment
+        run: |
+          # Récupère l'URL publique de l'application
+          APP_URL=$(az containerapp show \
+            --name ${{ env.CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
+            --query properties.configuration.ingress.fqdn -o tsv)
+          echo "🌐 Votre API est déployée à l'adresse : https://$APP_URL"
+          echo "🩺 Attente du démarrage (20s) et vérification..."
+          sleep 20
+          # Teste le endpoint /health
+          curl -f https://$APP_URL/health || exit 1
+          echo "✅ Déploiement vérifié et réussi !"
+```
+
+### Étape 7 : Déclencher et Observer le Pipeline {#sec-module5-etape5}
+```bash
+# Ajouter le fichier de workflow et le pousser
+git add .github/workflows/ci-cd.yml
+git commit -m "feat: add automated CI/CD pipeline with GitHub Actions"
+git push origin main
+
+# Le pipeline se déclenche AUTOMATIQUEMENT !
+```
+
+**Observez l'exécution** :
+
+
+1.  Allez sur votre dépôt GitHub.
+2.  Cliquez sur l'onglet **"Actions"**.
+3.  Vous verrez l'exécution de votre workflow nommé **"CI/CD Pipeline"**. Cliquez dessus pour voir les détails et les logs en direct.
+
+### Exercice Pratique {#sec-module5-exercice}
+
+::: callout-tip
+# EXERCICE 3
+
+1.  **Ajoutez un nouveau test** dans `test_api.py` pour tester un autre endpoint, par exemple l'endpoint `/docs` (documentation Swagger) qui devrait toujours être accessible.
+    ```python
+    def test_docs_endpoint():
+        """Test que la documentation Swagger est accessible"""
+        response = client.get("/docs")
+        assert response.status_code == 200
+    ```
+
+2.  **Faites un commit** de ce changement :
+    ```bash
+    git add tests/test_api.py
+    git commit -m "test: add docs endpoint test"
+    ```
+
+3.  **Poussez le commit** sur la branche `main` :
+    ```bash
+    git push origin main
+    ```
+
+4.  **Observez le pipeline** s'exécuter automatiquement dans l'onglet **Actions** de votre dépôt GitHub.
+5.  **Une fois le workflow terminé avec succès**, vérifiez que votre application a bien été redéployée en visitant son URL (celle affichée à la fin du job `Verify deployment`).
+:::
+
+### Dépannage des Erreurs Courantes {#sec-module5-troubleshooting}
+
+| **Symptôme / Message d'erreur** | **Cause la plus probable** | **Solution** |
+| :--- | :--- | :--- |
+| `Login failed... Not all parameters are provided in 'creds'` | Le secret `AZURE_CREDENTIALS` n'a pas le bon format (trop/moins de 4 champs). | Supprimez et recréez le secret avec l'objet JSON à **4 champs exactement** (`clientId`, `clientSecret`, `subscriptionId`, `tenantId`). |
+| `Error: ACR login failed... 401 Unauthorized` | Les secrets `ACR_USERNAME` ou `ACR_PASSWORD` sont incorrects. | Régénérez les mots de passe de votre ACR avec `az acr credential renew --name <acr-name>` et mettez à jour les secrets. |
+| Échec du job `build-and-deploy` avec `Repository not found` ou erreur sur `az containerapp update`. | Les noms dans `env:` (`ACR_NAME`, `CONTAINER_APP_NAME`) ne correspondent pas à vos ressources. | Vérifiez les noms exacts avec les commandes de l'**Étape 5** et corrigez le fichier `ci-cd.yml`. |
+| Le job `test` échoue sur `pytest collected 0 items`. | Vos fichiers dans `tests/` ne sont pas reconnus comme tests. | Assurez-vous que les noms de fonctions commencent par `test_`. Exemple : `def test_health_check():` |
+| Le job `test` échoue sur `list indices must be integers or slices, not tuple`. | Erreur dans `app/main.py`. | Corrigez l'indexation : remplacez `model.predict_proba(...)[0, 1]` par `model.predict_proba(...)[0][1]`. |
+
+### Checkpoint {#sec-module5-checkpoint}
+
+:::: callout-note
+# Validation Module 5
+
+Avant de passer au module suivant, vérifiez que ces conditions sont remplies :
+
+::: {style="margin-left: 20px; line-height: 1.8;"}
+-   [ ] **Le dépôt GitHub `bank-churn-mlops` existe** et est lié à votre projet local.
+-   [ ] **Les trois secrets GitHub** (`AZURE_CREDENTIALS`, `ACR_USERNAME`, `ACR_PASSWORD`) sont créés avec les **bonnes valeurs et le bon format**.
+-   [ ] **Le fichier `.github/workflows/ci-cd.yml`** est présent dans votre projet et contient les **noms exacts** de vos ressources Azure.
+-   [ ] **Le pipeline CI/CD s'exécute sans erreur** dans l'onglet GitHub Actions (les jobs `test` et `build-and-deploy` sont verts ✅).
+-   [ ] **L'application se redéploie automatiquement** : après un `git push`, une nouvelle image est créée et votre API conteneurisée est mise à jour sur Azure.
+:::
+::::
+
+## Module 6 : Monitoring et Maintenance {#sec-module6}
+
+### Objectif {#sec-module6-objectif}
+
+Mettre en place le monitoring de l'application et détecter les problèmes en production.
+
+### Configuration Application Insights {#sec-module6-appinsights}
+
+``` bash
+# Creation d'Application Insights
+az monitor app-insights component create \
+  --app bank-churn-insights \
+  --location $LOCATION \
+  --resource-group $RESOURCE_GROUP \
+  --application-type web
+
+# Recuperer la connection string
+APPINSIGHTS_CONN=$(az monitor app-insights component show \
+  --app bank-churn-insights \
+  --resource-group $RESOURCE_GROUP \
+  --query connectionString -o tsv)
+
+echo "Connection String : $APPINSIGHTS_CONN"
+
+# Ajouter la variable d'environnement a Container Apps
+az containerapp update \
+  --name $CONTAINER_APP_NAME \
+  --resource-group $RESOURCE_GROUP \
+  --set-env-vars "APPLICATIONINSIGHTS_CONNECTION_STRING=$APPINSIGHTS_CONN"
+```
+
+### Intégration du Monitoring dans le Code {#sec-module6-monitoring}
+
+Ajoutez dans `requirements.txt` :
+
+```         
+opencensus-ext-azure==1.1.9
+opencensus-ext-requests==0.12.1
+```
+
+Modifiez `app/main.py` pour ajouter le monitoring :
+
+``` python
+import os
+from opencensus.ext.azure.log_exporter import AzureLogHandler
+import logging
+
+# Configuration du logging avec Application Insights
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+APPINSIGHTS_CONN = os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING")
+if APPINSIGHTS_CONN:
+    logger.addHandler(AzureLogHandler(connection_string=APPINSIGHTS_CONN))
+    logger.info("Application Insights connecte")
+```
+
+### Détection de Data Drift {#sec-module6-drift}
+
+Créez le fichier `drift_detection.py` :
+
+``` python
+import pandas as pd
+from scipy.stats import ks_2samp
+import json
+
+def detect_drift(reference_file, production_file, threshold=0.05):
+    """
+    Detecte le drift entre donnees de reference et production
+    """
+    ref_data = pd.read_csv(reference_file)
+    prod_data = pd.read_csv(production_file)
+    
+    drift_results = {}
+    
+    for column in ref_data.columns:
+        if column in prod_data.columns and column != 'Exited':
+            # Test de Kolmogorov-Smirnov
+            statistic, p_value = ks_2samp(
+                ref_data[column].dropna(),
+                prod_data[column].dropna()
+            )
+            
+            drift_detected = p_value < threshold
+            
+            drift_results[column] = {
+                'p_value': float(p_value),
+                'statistic': float(statistic),
+                'drift_detected': drift_detected
+            }
+    
+    # Rapport
+    drifted_features = [f for f, r in drift_results.items() if r['drift_detected']]
+    
+    print("="*50)
+    print("DATA DRIFT DETECTION REPORT")
+    print("="*50)
+    print(f"Threshold: {threshold}")
+    print(f"Features analyzed: {len(drift_results)}")
+    print(f"Features with drift: {len(drifted_features)}")
+    print("\nDrifted features:")
+    for feature in drifted_features:
+        print(f"  - {feature}: p-value = {drift_results[feature]['p_value']:.4f}")
+    print("="*50)
+    
+    return drift_results
+
+if __name__ == "__main__":
+    results = detect_drift(
+        "data/bank_churn.csv",
+        "data/production_data.csv"
+    )
+    
+    # Sauvegarder les resultats
+    with open("drift_report.json", "w") as f:
+        json.dump(results, f, indent=2)
+    
+    print("\nRapport sauvegarde dans drift_report.json")
+```
+
+### Checkpoint {#sec-module6-checkpoint}
+
+:::: callout-note
+## Validation Module 6
+
+Avant de passer au module suivant, vérifiez que :
+
+::: {style="margin-left: 20px; line-height: 1.8;"}
+-   [ ] Application Insights est configuré
+-   [ ] Les logs apparaissent dans Azure Portal
+-   [ ] Vous pouvez visualiser les métriques
+-   [ ] Le script de détection de drift fonctionne
+:::
+::::
+
+## Module 7 : Optimisations et Bonnes Pratiques {#sec-module7}
+
+### Objectif {#sec-module7-objectif}
+
+Améliorer les performances, la sécurité et la maintenabilité de l'application.
+
+### Ajout d'un Cache pour les Prédictions {#sec-module7-cache}
+
+Modifiez `app/main.py` :
+
+``` python
+from functools import lru_cache
+import hashlib
+import json
+
+def hash_features(features_dict: dict) -> str:
+    """Cree un hash unique pour les features"""
+    return hashlib.md5(
+        json.dumps(features_dict, sort_keys=True).encode()
+    ).hexdigest()
+
+# Cache pour les predictions (1000 dernieres)
+@lru_cache(maxsize=1000)
+def predict_cached(features_hash: str, features_json: str):
+    features_dict = json.loads(features_json)
+    input_data = np.array([[
+        features_dict["CreditScore"],
+        features_dict["Age"],
+        # ... autres features
+    ]])
+    
+    proba = model.predict_proba(input_data)[0, 1]
+    prediction = int(proba > 0.5)
+    
+    if proba < 0.3:
+        risk = "Low"
+    elif proba < 0.7:
+        risk = "Medium"
+    else:
+        risk = "High"
+    
+    return {
+        "churn_probability": round(float(proba), 4),
+        "prediction": prediction,
+        "risk_level": risk
+    }
+
+@app.post("/predict", response_model=PredictionResponse)
+def predict(features: CustomerFeatures):
+    features_dict = features.dict()
+    features_hash = hash_features(features_dict)
+    features_json = json.dumps(features_dict)
+    
+    # Utilise le cache si disponible
+    result = predict_cached(features_hash, features_json)
+    
+    logger.info(f"Prediction - Hash: {features_hash[:8]}")
+    return result
+```
+
+### Checklist de Production {#sec-module7-checklist}
+
+::: callout-tip
+## Checklist Avant Production
+
+-   [ ] Tests unitaires avec coverage \> 80%
+-   [ ] Tests d'integration
+-   [ ] Load testing effectue
+-   [ ] Monitoring configure
+-   [ ] Alertes definies
+-   [ ] Logs centralises
+-   [ ] Documentation API complete
+-   [ ] HTTPS active
+-   [ ] Health checks fonctionnels
+-   [ ] Auto-scaling teste
+-   [ ] Variables d'environnement securisees
+-   [ ] Budget Azure surveille
+:::
+
+### Checkpoint Final {#sec-module7-checkpoint}
+
+:::: callout-note
+## Validation Module 7
+
+::: {style="margin-left: 20px; line-height: 1.8;"}
+-   [ ] Cache de predictions implemente
+-   [ ] Documentation complete
+-   [ ] Tous les tests passent
+-   [ ] Checklist de production verifiee
+:::
+::::
+
+## Nettoyage des Ressources Azure {#sec-nettoyage}
+
+### IMPORTANT - Suppression pour Éviter les Coûts {#sec-nettoyage-important}
+
+::: callout-warning
+## ATTENTION - À FAIRE À LA FIN DU WORKSHOP
+
+Pour éviter de consommer votre budget de 100\$, supprimez toutes les ressources :
+
+``` bash
+# Suppression du groupe de ressources (supprime tout)
+az group delete --name $RESOURCE_GROUP --yes --no-wait
+
+# Verification
+az group list --output table
+```
+
+Cette commande supprime : - Azure Container Registry - Azure Container Apps - Application Insights - Tous les logs et données
+
+**Temps de suppression** : 5-10 minutes
+:::
+
+### Script de Nettoyage Automatique {#sec-nettoyage-script}
+
+Créez `cleanup.sh` :
+
+``` bash
+#!/bin/bash
+
+RESOURCE_GROUP="rg-mlops"
+
+echo "=========================================="
+echo "Nettoyage des ressources Azure"
+echo "=========================================="
+
+read -p "Voulez-vous vraiment supprimer toutes les ressources ? (yes/no): " confirm
+
+if [ "$confirm" != "yes" ]; then
+    echo "Operation annulee."
+    exit 0
+fi
+
+echo "\nRessources a supprimer:"
+az resource list --resource-group $RESOURCE_GROUP --output table
+
+echo "\nSuppression en cours..."
+az group delete --name $RESOURCE_GROUP --yes --no-wait
+
+echo "\nSuppression lancee (prend 5-10 minutes)"
+echo "Verifiez sur : https://portal.azure.com"
+```
+
+``` bash
+# Rendre executable et lancer
+chmod +x cleanup.sh
+./cleanup.sh
+```
+
+## Récapitulatif du Workshop {#sec-recapitulatif}
+
+### Ce que Vous Avez Accompli {#sec-recap-accompli}
+
+Félicitations ! Vous avez déployé un système MLOps complet :
+
+**Architecture Finale :**
+
+`ML Training` → `FastAPI` → `Docker` → `Azure Container Registry` → `Azure Container Apps`
+
+↑ `GitHub Actions CI/CD`
+
+↑ `Application Insights Monitoring`
+
+### Compétences Acquises {#sec-recap-competences}
+
+1.  **Machine Learning**
+    -   Entraînement d'un modèle Random Forest
+    -   Évaluation avec métriques appropriées
+    -   Tracking avec MLflow
+2.  **Développement d'API**
+    -   Création d'API REST avec FastAPI
+    -   Validation des données avec Pydantic
+    -   Documentation automatique
+3.  **Conteneurisation**
+    -   Dockerfiles optimisés
+    -   Bonnes pratiques de sécurité
+    -   Gestion des images
+4.  **Cloud Azure**
+    -   Azure Container Registry
+    -   Azure Container Apps
+    -   Application Insights
+5.  **DevOps/MLOps**
+    -   Pipelines CI/CD avec GitHub Actions
+    -   Tests automatisés
+    -   Déploiement continu
+6.  **Monitoring et Maintenance**
+    -   Logs centralisés
+    -   Métriques de performance
+    -   Détection de data drift
+
+### Points Clés à Retenir {#sec-recap-points-cles}
+
+::: callout-important
+## Lecons Importantes
+
+1.  **MLOps = DevOps + ML** : Automatisation du cycle de vie complet
+2.  **Conteneurisation** : Portabilité et reproductibilité
+3.  **Tests** : Essentiels pour la fiabilité
+4.  **Monitoring** : Indispensable en production
+5.  **Documentation** : Facilite la collaboration
+6.  **Sécurité** : À considérer dès le début
+7.  **Coûts** : Toujours surveiller l'utilisation cloud
+:::
+
+## FAQ - Foire Aux Questions {#sec-faq}
+
+### Questions Techniques {#sec-faq-techniques}
+
+**Q1 : Mon API est lente, comment l'optimiser ?**
+
+*R :* Plusieurs options : - Activer le cache des prédictions - Utiliser des prédictions batch - Optimiser le modèle (quantization, pruning) - Augmenter les ressources CPU/RAM
+
+**Q2 : Comment gérer plusieurs versions de modèles ?**
+
+*R :* Utilisez MLflow Model Registry et créez des endpoints différents (v1, v2).
+
+**Q3 : Comment implémenter un rollback ?**
+
+*R :* Conservez les anciennes images Docker avec tags et utilisez :
+
+``` bash
+az containerapp update \
+  --name $APP_NAME \
+  --resource-group $RESOURCE_GROUP \
+  --image $ACR_NAME.azurecr.io/bank-churn-api:v1  # Version precedente
+```
+
+**Q4 : Mon budget Azure est presque épuisé, que faire ?**
+
+*R :* - Mettre min-replicas à 0 - Utiliser des SKU Basic - Supprimer les ressources inutilisées - Activer les budgets alerts
+
+### Questions de Compréhension {#sec-faq-comprehension}
+
+**Q5 : Quelle est la différence entre Docker et Kubernetes ?**
+
+*R :* Docker conteneurise les applications, Kubernetes les orchestre (scaling, load balancing, self-healing).
+
+**Q6 : Pourquoi utiliser FastAPI plutôt que Flask ?**
+
+*R :* FastAPI est plus rapide, avec validation automatique, documentation auto-générée, et support async natif.
+
+**Q7 : Qu'est-ce que le data drift ?**
+
+*R :* Changement dans la distribution des données d'entrée par rapport aux données d'entraînement, pouvant dégrader les performances du modèle.
+
+## Conclusion {#sec-conclusion}
+
+### Félicitations ! {#sec-conclusion-felicitations}
+
+Vous avez terminé ce workshop intensif de MLOps avec Azure. Vous avez construit un système complet de déploiement de modèle de Machine Learning en production, avec toutes les bonnes pratiques de l'industrie.
+
+### Prochaines Étapes {#sec-conclusion-next-steps}
+
+1.  **Pratiquez** : Refaites le workshop avec un dataset différent
+2.  **Partagez** : Mettez votre projet sur GitHub
+3.  **Améliorez** : Implémentez les fonctionnalités avancées
+4.  **Certifiez-vous** : Préparez les certifications Azure
+
+------------------------------------------------------------------------
+
+**Bon Apprentissage et Bon Déploiement !**
+
+*Ce guide vous a accompagné dans votre premier projet MLOps.\
+Continuez à explorer, à apprendre et à innover.*
+
+------------------------------------------------------------------------
+
+*Version 1.0 - Novembre 2025*\
+*Workshop MLOps avec Azure* \n\## Test de déploiement - jeu. 20 nov. 2025 03:26:42
