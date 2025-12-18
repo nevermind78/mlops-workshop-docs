@@ -563,8 +563,16 @@ def predict(features: CustomerFeatures):
             risk = "High"
         
         logger.info(
-            f"Prediction effectuee : proba={proba:.4f}, "
-            f"prediction={prediction}, risk={risk}"
+            "prediction",
+            extra={
+                "custom_dimensions": {
+                    "event_type": "prediction",
+                    "endpoint": "/predict",
+                    "probability": float(proba),
+                    "prediction": prediction,
+                    "risk_level": risk
+                }
+            }
         )
         
         return {
