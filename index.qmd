@@ -2057,61 +2057,444 @@ Créez le fichier `drift_detection.py` :
 
 ``` python
 import pandas as pd
-from scipy.stats import ks_2samp
+import numpy as np
+from scipy.stats import ks_2samp, chi2_contingency
 import json
+import warnings
+from datetime import datetime
+import argparse
+import sys
+import os
 
-def detect_drift(reference_file, production_file, threshold=0.05):
-    """
-    Detecte le drift entre donnees de reference et production
-    """
-    ref_data = pd.read_csv(reference_file)
-    prod_data = pd.read_csv(production_file)
+warnings.filterwarnings('ignore')
+
+class DriftMonitor:
+    """Classe complète de monitoring de drift"""
     
-    drift_results = {}
+    def __init__(self, reference_file, production_file=None, threshold=0.05):
+        """
+        Initialise le monitor de drift
+        
+        Args:
+            reference_file: Chemin vers les données de référence
+            production_file: Chemin vers les données de production (optionnel)
+            threshold: Seuil de p-value pour détecter le drift
+        """
+        self.reference_file = reference_file
+        self.production_file = production_file
+        self.threshold = threshold
+        self.reference_data = None
+        self.production_data = None
+        self.results = {}
+        
+        # Charger les données
+        self.load_data()
     
-    for column in ref_data.columns:
-        if column in prod_data.columns and column != 'Exited':
-            # Test de Kolmogorov-Smirnov
-            statistic, p_value = ks_2samp(
-                ref_data[column].dropna(),
-                prod_data[column].dropna()
-            )
+    def load_data(self):
+        """Charge les données de référence et de production"""
+        try:
+            self.reference_data = pd.read_csv(self.reference_file)
+            print(f"✅ Données de référence chargées: {self.reference_file}")
+            print(f"   Shape: {self.reference_data.shape}, Colonnes: {list(self.reference_data.columns)}")
+        except Exception as e:
+            print(f"❌ Erreur chargement données référence: {e}")
+            sys.exit(1)
             
-            drift_detected = p_value < threshold
+        if self.production_file and os.path.exists(self.production_file):
+            try:
+                self.production_data = pd.read_csv(self.production_file)
+                print(f"✅ Données de production chargées: {self.production_file}")
+                print(f"   Shape: {self.production_data.shape}")
+            except Exception as e:
+                print(f"❌ Erreur chargement données production: {e}")
+                self.production_data = None
+    
+    def generate_production_data(self, drift_intensity='medium', output_file=None):
+        """
+        Génère des données de production avec drift artificiel
+        
+        Args:
+            drift_intensity: 'low', 'medium', 'high'
+            output_file: Fichier de sortie (optionnel)
+        """
+        if self.reference_data is None:
+            print("❌ Données de référence non chargées")
+            return None
+        
+        print(f"\n🔧 Génération données avec drift ({drift_intensity})...")
+        
+        # Copie des données de référence
+        prod_data = self.reference_data.copy()
+        
+        # Paramètres de drift selon l'intensité
+        drift_params = {
+            'low': {'scale': 0.05, 'shift': 0.1, 'noise': 0.01},
+            'medium': {'scale': 0.15, 'shift': 0.3, 'noise': 0.05},
+            'high': {'scale': 0.3, 'shift': 0.5, 'noise': 0.1}
+        }
+        
+        params = drift_params.get(drift_intensity, drift_params['medium'])
+        np.random.seed(42)
+        
+        # Appliquer le drift sur chaque colonne numérique
+        numeric_cols = self.reference_data.select_dtypes(include=[np.number]).columns
+        
+        for col in numeric_cols:
+            if col != 'Exited':  # Ne pas modifier la target
+                data = self.reference_data[col].dropna()
+                if len(data) > 0:
+                    # Shift de la distribution
+                    shift = data.mean() * params['shift'] * np.random.choice([-1, 1])
+                    prod_data[col] = prod_data[col] + shift
+                    
+                    # Changement d'échelle
+                    scale_factor = 1 + params['scale'] * np.random.uniform(-1, 1)
+                    prod_data[col] = prod_data[col] * scale_factor
+                    
+                    # Ajout de bruit
+                    noise = data.std() * params['noise'] * np.random.randn(len(prod_data))
+                    prod_data[col] = prod_data[col] + noise
+        
+        # Drift conceptuel pour les colonnes catégorielles
+        categorical_cols = self.reference_data.select_dtypes(include=['object', 'category']).columns
+        for col in categorical_cols:
+            if col in prod_data.columns:
+                # Modifier légèrement les proportions
+                unique_values = prod_data[col].unique()
+                if len(unique_values) > 1:
+                    # Augmenter la fréquence d'une catégorie
+                    most_common = prod_data[col].mode()[0]
+                    mask = prod_data[col] == most_common
+                    prod_data.loc[mask, col] = np.random.choice(
+                        unique_values, 
+                        size=mask.sum(), 
+                        p=[0.7 if v == most_common else 0.3/(len(unique_values)-1) for v in unique_values]
+                    )
+        
+        # Sauvegarder si un fichier de sortie est spécifié
+        if output_file:
+            prod_data.to_csv(output_file, index=False)
+            print(f"💾 Données sauvegardées: {output_file}")
+            self.production_file = output_file
+        
+        self.production_data = prod_data
+        return prod_data
+    
+    def detect_numerical_drift(self, col):
+        """Détecte le drift pour une colonne numérique (test KS)"""
+        try:
+            ref_vals = self.reference_data[col].dropna()
+            prod_vals = self.production_data[col].dropna()
             
-            drift_results[column] = {
-                'p_value': float(p_value),
+            if len(ref_vals) == 0 or len(prod_vals) == 0:
+                return None
+            
+            statistic, p_value = ks_2samp(ref_vals, prod_vals, method='asymp')
+            
+            return {
+                'test': 'Kolmogorov-Smirnov',
                 'statistic': float(statistic),
-                'drift_detected': drift_detected
+                'p_value': float(p_value),
+                'drift_detected': p_value < self.threshold,
+                'ref_mean': float(ref_vals.mean()),
+                'prod_mean': float(prod_vals.mean()),
+                'ref_std': float(ref_vals.std()),
+                'prod_std': float(prod_vals.std())
             }
+        except Exception as e:
+            print(f"⚠️ Erreur test numérique {col}: {e}")
+            return None
     
-    # Rapport
-    drifted_features = [f for f, r in drift_results.items() if r['drift_detected']]
+    def detect_categorical_drift(self, col):
+        """Détecte le drift pour une colonne catégorielle (test chi2)"""
+        try:
+            # Créer des tableaux de contingence
+            ref_counts = self.reference_data[col].value_counts()
+            prod_counts = self.production_data[col].value_counts()
+            
+            # Aligner les catégories
+            all_categories = list(set(ref_counts.index) | set(prod_counts.index))
+            
+            ref_aligned = [ref_counts.get(cat, 0) for cat in all_categories]
+            prod_aligned = [prod_counts.get(cat, 0) for cat in all_categories]
+            
+            # Tableau de contingence
+            contingency_table = np.array([ref_aligned, prod_aligned])
+            
+            # Test chi2
+            chi2, p_value, dof, expected = chi2_contingency(contingency_table)
+            
+            return {
+                'test': 'Chi-squared',
+                'statistic': float(chi2),
+                'p_value': float(p_value),
+                'drift_detected': p_value < self.threshold,
+                'ref_distribution': ref_counts.to_dict(),
+                'prod_distribution': prod_counts.to_dict()
+            }
+        except Exception as e:
+            print(f"⚠️ Erreur test catégoriel {col}: {e}")
+            return None
     
-    print("="*50)
-    print("DATA DRIFT DETECTION REPORT")
-    print("="*50)
-    print(f"Threshold: {threshold}")
-    print(f"Features analyzed: {len(drift_results)}")
-    print(f"Features with drift: {len(drifted_features)}")
-    print("\nDrifted features:")
-    for feature in drifted_features:
-        print(f"  - {feature}: p-value = {drift_results[feature]['p_value']:.4f}")
-    print("="*50)
+    def detect_drift(self):
+        """Détecte le drift sur toutes les features"""
+        if self.production_data is None:
+            print("❌ Données de production non disponibles")
+            return {}
+        
+        print(f"\n🔍 Détection de drift (seuil: p < {self.threshold})...")
+        
+        self.results = {}
+        columns_to_check = [col for col in self.reference_data.columns if col != 'Exited']
+        
+        for col in columns_to_check:
+            if col in self.production_data.columns:
+                # Déterminer le type de colonne
+                if pd.api.types.is_numeric_dtype(self.reference_data[col]):
+                    result = self.detect_numerical_drift(col)
+                else:
+                    result = self.detect_categorical_drift(col)
+                
+                if result:
+                    self.results[col] = result
+        
+        return self.results
     
-    return drift_results
+    def generate_report(self):
+        """Génère un rapport complet de drift"""
+        if not self.results:
+            print("❌ Aucun résultat de drift disponible")
+            return None
+        
+        drifted_features = [f for f, r in self.results.items() if r['drift_detected']]
+        
+        # Statistiques générales
+        report = {
+            'metadata': {
+                'timestamp': datetime.now().isoformat(),
+                'reference_file': self.reference_file,
+                'production_file': self.production_file,
+                'threshold': self.threshold,
+                'total_features_analyzed': len(self.results)
+            },
+            'summary': {
+                'drifted_features_count': len(drifted_features),
+                'drift_percentage': (len(drifted_features) / len(self.results)) * 100,
+                'drift_severity': self._assess_drift_severity(drifted_features)
+            },
+            'drifted_features': [],
+            'all_features': []
+        }
+        
+        # Détails des features avec drift
+        for feature in drifted_features:
+            result = self.results[feature]
+            severity = self._get_feature_severity(result['p_value'])
+            
+            feature_report = {
+                'feature': feature,
+                'test': result['test'],
+                'p_value': result['p_value'],
+                'severity': severity,
+                'drift_detected': True
+            }
+            
+            # Ajouter des métriques spécifiques
+            if result['test'] == 'Kolmogorov-Smirnov':
+                feature_report.update({
+                    'mean_change_percent': self._calculate_change_percent(
+                        result['ref_mean'], result['prod_mean']
+                    ),
+                    'std_change_percent': self._calculate_change_percent(
+                        result['ref_std'], result['prod_std']
+                    )
+                })
+            
+            report['drifted_features'].append(feature_report)
+        
+        # Toutes les features
+        for feature, result in self.results.items():
+            report['all_features'].append({
+                'feature': feature,
+                'test': result['test'],
+                'p_value': result['p_value'],
+                'drift_detected': result['drift_detected']
+            })
+        
+        # Recommandations
+        report['recommendations'] = self._generate_recommendations(report)
+        
+        return report
+    
+    def _assess_drift_severity(self, drifted_features):
+        """Évalue la sévérité globale du drift"""
+        if not drifted_features:
+            return 'LOW'
+        
+        # Compter les features avec p-value très basse
+        high_severity = sum(1 for f in drifted_features 
+                          if self.results[f]['p_value'] < 0.001)
+        
+        if high_severity > 3:
+            return 'CRITICAL'
+        elif high_severity > 1:
+            return 'HIGH'
+        elif len(drifted_features) > 5:
+            return 'MEDIUM'
+        else:
+            return 'LOW'
+    
+    def _get_feature_severity(self, p_value):
+        """Détermine la sévérité pour une feature"""
+        if p_value < 0.001:
+            return 'CRITICAL'
+        elif p_value < 0.01:
+            return 'HIGH'
+        elif p_value < 0.05:
+            return 'MEDIUM'
+        else:
+            return 'LOW'
+    
+    def _calculate_change_percent(self, ref_val, prod_val):
+        """Calcule le pourcentage de changement"""
+        if ref_val == 0:
+            return None
+        return ((prod_val - ref_val) / abs(ref_val)) * 100
+    
+    def _generate_recommendations(self, report):
+        """Génère des recommandations basées sur les résultats"""
+        recommendations = []
+        
+        summary = report['summary']
+        
+        if summary['drift_severity'] == 'CRITICAL':
+            recommendations.append("🚨 DRIFT CRITIQUE: Retrain immédiat du modèle requis")
+            recommendations.append("Analyser l'impact business du drift")
+            
+        elif summary['drift_severity'] == 'HIGH':
+            recommendations.append("⚠️ Drift significatif: Planifier un retraining sous 7 jours")
+            recommendations.append("Surveiller les métriques de performance du modèle")
+            
+        elif summary['drift_severity'] == 'MEDIUM':
+            recommendations.append("🔶 Drift modéré: Surveiller de près les prochains jours")
+            recommendations.append("Collecter plus de données pour confirmation")
+            
+        elif summary['drift_percentage'] > 30:
+            recommendations.append("📊 Nombre élevé de features avec drift: Vérifier la qualité des données")
+            
+        else:
+            recommendations.append("✅ Stabilité détectée: Poursuivre le monitoring régulier")
+        
+        # Recommandations spécifiques
+        drifted = report['drifted_features']
+        if drifted:
+            critical_features = [f['feature'] for f in drifted if f['severity'] in ['CRITICAL', 'HIGH']]
+            if critical_features:
+                recommendations.append(f"📈 Features prioritaires: {', '.join(critical_features[:3])}")
+        
+        return recommendations
+    
+    def save_report(self, report, output_file='drift_report.json'):
+        """Sauvegarde le rapport au format JSON"""
+        with open(output_file, 'w') as f:
+            json.dump(report, f, indent=2, default=str)
+        print(f"📄 Rapport sauvegardé: {output_file}")
+    
+    def print_summary(self, report):
+        """Affiche un résumé du rapport"""
+        if not report:
+            return
+        
+        metadata = report['metadata']
+        summary = report['summary']
+        
+        print("\n" + "="*60)
+        print("📊 RAPPORT DE DRIFT DETECTION")
+        print("="*60)
+        print(f"Timestamp: {metadata['timestamp']}")
+        print(f"Fichier référence: {metadata['reference_file']}")
+        print(f"Fichier production: {metadata['production_file']}")
+        print(f"Seuil: p < {metadata['threshold']}")
+        print(f"Features analysées: {metadata['total_features_analyzed']}")
+        print(f"Features avec drift: {summary['drifted_features_count']}")
+        print(f"Pourcentage de drift: {summary['drift_percentage']:.1f}%")
+        print(f"Sévérité: {summary['drift_severity']}")
+        
+        if report['drifted_features']:
+            print("\n🚨 FEATURES AVEC DRIFT DÉTECTÉ:")
+            for feature in report['drifted_features']:
+                print(f"  - {feature['feature']}: p={feature['p_value']:.4f} ({feature['severity']})")
+        
+        print("\n💡 RECOMMANDATIONS:")
+        for rec in report['recommendations']:
+            print(f"  • {rec}")
+        
+        print("="*60)
 
-if __name__ == "__main__":
-    results = detect_drift(
-        "data/bank_churn.csv",
-        "data/production_data.csv"
+def main():
+    """Fonction principale avec interface en ligne de commande"""
+    parser = argparse.ArgumentParser(description='Monitoring de drift pour MLOps')
+    parser.add_argument('--reference', '-r', required=True, 
+                       help='Fichier CSV de données de référence')
+    parser.add_argument('--production', '-p', 
+                       help='Fichier CSV de données de production')
+    parser.add_argument('--generate', '-g', action='store_true',
+                       help='Générer des données de production avec drift')
+    parser.add_argument('--intensity', '-i', default='medium',
+                       choices=['low', 'medium', 'high'],
+                       help='Intensité du drift artificiel')
+    parser.add_argument('--output', '-o', default='production_data.csv',
+                       help='Fichier de sortie pour données générées')
+    parser.add_argument('--threshold', '-t', type=float, default=0.05,
+                       help='Seuil de p-value pour détection de drift')
+    parser.add_argument('--report', default='drift_report.json',
+                       help='Fichier de sortie pour le rapport')
+    
+    args = parser.parse_args()
+    
+    # Initialiser le monitor
+    monitor = DriftMonitor(
+        reference_file=args.reference,
+        production_file=args.production,
+        threshold=args.threshold
     )
     
-    # Sauvegarder les resultats
-    with open("drift_report.json", "w") as f:
-        json.dump(results, f, indent=2)
+    # Générer des données si demandé
+    if args.generate:
+        monitor.generate_production_data(
+            drift_intensity=args.intensity,
+            output_file=args.output
+        )
     
-    print("\nRapport sauvegarde dans drift_report.json")
+    # Détecter le drift
+    results = monitor.detect_drift()
+    
+    if results:
+        # Générer le rapport
+        report = monitor.generate_report()
+        
+        # Afficher le résumé
+        monitor.print_summary(report)
+        
+        # Sauvegarder le rapport
+        monitor.save_report(report, args.report)
+        
+        # Sauvegarder un résumé texte
+        with open('drift_summary.txt', 'w') as f:
+            f.write(f"Drift Detection Summary\n")
+            f.write(f"=======================\n")
+            f.write(f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"Features with drift: {report['summary']['drifted_features_count']}/{len(results)}\n")
+            f.write(f"Severity: {report['summary']['drift_severity']}\n")
+            if report['drifted_features']:
+                f.write("\nDrifted Features:\n")
+                for feat in report['drifted_features']:
+                    f.write(f"  - {feat['feature']} (p={feat['p_value']:.4f}, {feat['severity']})\n")
+    else:
+        print("❌ Aucun résultat de drift disponible")
+
+if __name__ == "__main__":
+    main()
 ```
 
 ### Checkpoint {#sec-module6-checkpoint}
